@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { db, schema, sqlClient as sql } from '../db';
 import { getSetting, hashPassword, HttpError, requireAdmin, setSetting, type RegistrationMode } from '../auth';
 import { env } from '../env';
+import { isUuid } from '../access';
 
 export async function adminRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAdmin);
@@ -37,6 +38,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.patch('/api/admin/users/:id', async (req) => {
     const id = (req.params as any).id;
+    if (!isUuid(id)) throw new HttpError(404, 'Не знайдено');
     const b = z
       .object({ role: z.enum(['admin', 'user']).optional(), status: z.enum(['active', 'pending', 'blocked']).optional(), name: z.string().optional() })
       .parse(req.body);
@@ -48,6 +50,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.post('/api/admin/users/:id/password', async (req) => {
     const id = (req.params as any).id;
+    if (!isUuid(id)) throw new HttpError(404, 'Не знайдено');
     const b = z.object({ password: z.string().min(8, 'Пароль — мінімум 8 символів') }).parse(req.body);
     await db.update(schema.users).set({ passwordHash: await hashPassword(b.password) }).where(eq(schema.users.id, id));
     await db.delete(schema.sessions).where(eq(schema.sessions.userId, id));
@@ -56,6 +59,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.delete('/api/admin/users/:id', async (req) => {
     const id = (req.params as any).id;
+    if (!isUuid(id)) throw new HttpError(404, 'Не знайдено');
     if (id === req.user!.id) throw new HttpError(400, 'Не можна видалити себе');
     await db.delete(schema.users).where(eq(schema.users.id, id));
     return { ok: true };
@@ -107,7 +111,11 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.post('/api/admin/jobs/:id/retry', async (req) => {
     const id = Number((req.params as any).id);
-    await db.execute(dsql`update jobs set status = 'queued', attempts = 0, run_after = now() where id = ${id} and status = 'failed'`);
+    try {
+      await db.execute(dsql`update jobs set status = 'queued', attempts = 0, run_after = now(), finished_at = null where id = ${id} and status = 'failed'`);
+    } catch {
+      throw new HttpError(409, 'Така задача вже стоїть у черзі');
+    }
     return { ok: true };
   });
 }

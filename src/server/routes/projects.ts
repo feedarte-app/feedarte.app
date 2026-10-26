@@ -4,7 +4,7 @@ import { and, desc, eq, sql as dsql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { db, schema, sqlClient as sql } from '../db';
 import { HttpError, requireUser } from '../auth';
-import { getDesign, getFeed, getProject } from '../access';
+import { getDesign, getFeed, getProject, isUuid } from '../access';
 import { queueRender, queueSync } from '../feed/sync';
 import { assertPublicUrl } from '../net';
 import { DEFAULT_OUTPUT } from '../db/schema';
@@ -218,7 +218,7 @@ export async function projectRoutes(app: FastifyInstance) {
     if (body.templateId) {
       const bt = builtinTemplates().find((t) => t.id === body.templateId);
       if (bt) doc = structuredClone(bt.doc);
-      else {
+      else if (isUuid(body.templateId)) {
         const t = await db.query.templates.findFirst({ where: eq(schema.templates.id, body.templateId) });
         if (t && (t.ownerId === null || t.ownerId === req.user!.id || req.user!.role === 'admin')) doc = structuredClone(t.doc);
       }
@@ -353,6 +353,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
   app.delete('/api/templates/:id', async (req) => {
     const id = (req.params as any).id;
+    if (!isUuid(id)) throw new HttpError(404, 'Шаблон не знайдено');
     const t = await db.query.templates.findFirst({ where: eq(schema.templates.id, id) });
     if (!t) throw new HttpError(404, 'Шаблон не знайдено');
     if (t.ownerId !== req.user!.id && req.user!.role !== 'admin') throw new HttpError(403, 'Немає доступу');

@@ -10,6 +10,21 @@ import { log } from '../log';
 
 const BATCH = 500;
 
+/** XML declaration encoding wins (Rozetka/Prom YML often use windows-1251), then HTTP charset, then UTF-8. */
+export function makeDecoder(first: Uint8Array, headerCharset?: string): TextDecoder {
+  const head = Buffer.from(first.slice(0, 200)).toString('latin1');
+  const declared = /<\?xml[^>]*encoding=["']([\w-]+)["']/i.exec(head)?.[1];
+  for (const cs of [declared, headerCharset, 'utf-8']) {
+    if (!cs) continue;
+    try {
+      return new TextDecoder(cs.toLowerCase() === 'cp1251' ? 'windows-1251' : cs);
+    } catch {
+      /* unknown label */
+    }
+  }
+  return new TextDecoder('utf-8');
+}
+
 function hashData(d: ProductData) {
   return crypto.createHash('sha1').update(JSON.stringify(d)).digest('hex');
 }
@@ -89,15 +104,17 @@ export async function syncFeed(feedId: string, opts: { force?: boolean; heartbea
     };
 
     let bytes = 0;
-    const decoder = new TextDecoder('utf-8');
+    let decoder: TextDecoder | null = null;
+    const headerCharset = /charset=["']?([\w-]+)/i.exec(res.headers.get('content-type') ?? '')?.[1];
     for await (const chunk of res.body as any as AsyncIterable<Uint8Array>) {
       bytes += chunk.length;
       if (bytes > env.maxFeedBytes) throw new Error('Фід завеликий');
       hasher.update(chunk);
+      if (!decoder) decoder = makeDecoder(chunk, headerCharset);
       parser.write(decoder.decode(chunk, { stream: true }));
       if (pending.length >= BATCH) await flush();
     }
-    parser.write(decoder.decode());
+    if (decoder) parser.write(decoder.decode());
     parser.end();
     await flush();
 

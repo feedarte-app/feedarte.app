@@ -9,7 +9,9 @@ x-app: &app
   restart: unless-stopped
   env_file: .env
   environment:
-    DATABASE_URL: postgres://feedcraft:${POSTGRES_PASSWORD}@db:5432/feedcraft
+    DB_HOST: db
+    DB_USER: feedcraft
+    DB_NAME: feedcraft
     NODE_ENV: production
   volumes:
     - appdata:/app/data

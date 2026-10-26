@@ -45,7 +45,8 @@ export async function claim(types: JobType[]): Promise<Job | null> {
 }
 
 export async function complete(id: number) {
-  await sql`update jobs set status = 'done', finished_at = now(), locked_at = null where id = ${id}`;
+  await sql`update jobs set status = 'done', finished_at = now(), locked_at = null
+    where id = ${id} and status = 'running' and locked_by = ${workerId}`;
 }
 
 export async function fail(job: Job, err: unknown) {
@@ -55,26 +56,44 @@ export async function fail(job: Job, err: unknown) {
     // if an identical job is already queued, just mark this one failed
     try {
       await sql`update jobs set status = 'queued', locked_at = null, last_error = ${msg},
-        run_after = now() + make_interval(secs => ${backoff}) where id = ${job.id}`;
+        run_after = now() + make_interval(secs => ${backoff})
+        where id = ${job.id} and status = 'running' and locked_by = ${workerId}`;
       return;
     } catch {
       /* unique violation: another queued copy exists */
     }
   }
-  await sql`update jobs set status = 'failed', finished_at = now(), last_error = ${msg}, locked_at = null where id = ${job.id}`;
+  await sql`update jobs set status = 'failed', finished_at = now(), last_error = ${msg}, locked_at = null
+    where id = ${job.id} and status = 'running' and locked_by = ${workerId}`;
 }
 
-/** Re-queue jobs whose worker died (no heartbeat for 20 minutes). */
+/** Re-queue jobs whose worker died (heartbeat is sent every 30 s; 5 min silence = dead). */
 export async function recoverStale() {
-  await sql`update jobs set status = 'queued', locked_at = null
-    where status = 'running' and locked_at < now() - interval '20 minutes'
+  await sql`update jobs set status = 'queued', locked_at = null, locked_by = null, last_error = 'worker lost'
+    where status = 'running' and locked_at < now() - interval '5 minutes' and attempts < max_attempts
     and not exists (select 1 from jobs q where q.status = 'queued' and q.dedupe_key = jobs.dedupe_key)`;
-  await sql`update jobs set status = 'failed', finished_at = now(), last_error = 'stale'
-    where status = 'running' and locked_at < now() - interval '20 minutes'`;
+  await sql`update jobs set status = 'failed', finished_at = now(), last_error = coalesce(last_error, 'stale')
+    where status = 'running' and locked_at < now() - interval '5 minutes'`;
+  // statuses left behind by a dead worker
+  await sql`update feeds set status = 'error', last_error = 'Оновлення перервано, буде повторено'
+    where status in ('syncing', 'queued') and not exists (
+      select 1 from jobs j where j.dedupe_key = 'sync:' || feeds.id::text and j.status in ('queued', 'running'))`;
+  await sql`update designs set render_status = case when render_stats is null then 'idle' else 'ok' end
+    where render_status in ('rendering', 'queued') and not exists (
+      select 1 from jobs j where j.dedupe_key = 'render:' || designs.id::text and j.status in ('queued', 'running'))`;
+}
+
+/** On graceful shutdown hand unfinished jobs back to the queue immediately. */
+export async function releaseMine() {
+  await sql`update jobs set status = 'queued', locked_at = null, locked_by = null, attempts = greatest(attempts - 1, 0)
+    where status = 'running' and locked_by = ${workerId}
+    and not exists (select 1 from jobs q where q.status = 'queued' and q.dedupe_key = jobs.dedupe_key)`;
+  await sql`update jobs set status = 'failed', finished_at = now(), last_error = 'shutdown'
+    where status = 'running' and locked_by = ${workerId}`;
 }
 
 export async function heartbeat(id: number) {
-  await sql`update jobs set locked_at = now() where id = ${id} and status = 'running'`;
+  await sql`update jobs set locked_at = now() where id = ${id} and status = 'running' and locked_by = ${workerId}`;
 }
 
 /** Keep the jobs table small. */

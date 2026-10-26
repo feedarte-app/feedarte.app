@@ -4,7 +4,9 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { once } from 'node:events';
 import type { ProductData } from '../../shared/types';
+import crypto from 'node:crypto';
 import { publicDir } from '../storage';
+import { env } from '../env';
 
 export interface OutputItem {
   data: ProductData;
@@ -78,29 +80,35 @@ export class OutputWriter {
   private stream: fs.WriteStream;
   private tmp: string;
   private final: string;
+  private err: Error | null = null;
   count = 0;
 
   constructor(token: string, title: string, private keepOriginal: boolean) {
     this.final = path.join(publicDir, 'feeds', `${token}.xml`);
-    this.tmp = `${this.final}.${process.pid}.tmp`;
+    this.tmp = `${this.final}.${crypto.randomBytes(6).toString('hex')}.tmp`;
     fs.mkdirSync(path.dirname(this.final), { recursive: true });
     this.stream = fs.createWriteStream(this.tmp);
+    this.stream.on('error', (e) => (this.err = e));
     this.stream.write(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">\n<channel>\n<title>${esc(title)}</title>\n<link>https://feedcraft.app</link>\n<description>${esc(title)}</description>\n`,
+      `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">\n<channel>\n<title>${esc(title)}</title>\n<link>${esc(env.publicUrl)}</link>\n<description>${esc(title)}</description>\n`,
     );
   }
 
   async write(items: OutputItem[]) {
+    if (this.err) throw this.err;
     for (const it of items) {
       if (it.skip) continue;
       this.count++;
-      if (!this.stream.write(itemXml(it, this.keepOriginal) + '\n')) await once(this.stream, 'drain');
+      if (!this.stream.write(itemXml(it, this.keepOriginal) + '\n')) await Promise.race([once(this.stream, 'drain'), once(this.stream, 'error')]);
+      if (this.err) throw this.err;
     }
   }
 
   async close() {
+    if (this.err) throw this.err;
     this.stream.end('</channel>\n</rss>\n');
-    await once(this.stream, 'finish');
+    await Promise.race([once(this.stream, 'finish'), once(this.stream, 'error')]);
+    if (this.err) throw this.err;
     await fsp.rename(this.tmp, this.final);
   }
 

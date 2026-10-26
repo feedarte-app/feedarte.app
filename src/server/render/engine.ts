@@ -51,7 +51,7 @@ export async function fetchImageBytes(url: string): Promise<Buffer> {
   if (url.startsWith('/a/') || url.startsWith(`${env.publicUrl}/a/`)) {
     const rel = url.startsWith('/') ? url.slice(1) : url.slice(env.publicUrl.length + 1);
     const p = path.resolve(publicDir, rel);
-    if (!p.startsWith(publicDir)) throw new Error('bad asset path');
+    if (!p.startsWith(publicDir + path.sep)) throw new Error('bad asset path');
     return fsp.readFile(p);
   }
   const cp = cachePath(url);

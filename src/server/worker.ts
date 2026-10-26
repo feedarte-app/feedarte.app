@@ -1,6 +1,6 @@
 import { env } from './env';
 import { runMigrations, sqlClient, db, schema } from './db';
-import { claim, complete, fail, heartbeat, pruneJobs, recoverStale, workerId, type Job } from './queue';
+import { claim, complete, fail, heartbeat, pruneJobs, recoverStale, releaseMine, workerId, type Job } from './queue';
 import { scheduleDueFeeds, syncFeed } from './feed/sync';
 import { renderDesignJob } from './render/job';
 import { ensureDirs } from './storage';
@@ -48,6 +48,7 @@ async function loop() {
     running++;
     const j = job;
     const t0 = Date.now();
+    const beat = setInterval(() => heartbeat(j.id).catch(() => {}), 30_000);
     handle(j)
       .then(() => complete(j.id))
       .then(() => log.info({ job: j.id, type: j.type, ms: Date.now() - t0 }, 'job done'))
@@ -55,7 +56,10 @@ async function loop() {
         log.error({ job: j.id, type: j.type, err: e instanceof Error ? e.message : String(e) }, 'job failed');
         await fail(j, e).catch(() => {});
       })
-      .finally(() => running--);
+      .finally(() => {
+        clearInterval(beat);
+        running--;
+      });
   }
 }
 
@@ -91,6 +95,7 @@ async function main() {
     stopping = true;
     const deadline = Date.now() + 25_000;
     while (running > 0 && Date.now() < deadline) await sleep(500);
+    await releaseMine().catch(() => {});
     await sqlClient`delete from settings where key = ${'worker:' + workerId}`.catch(() => {});
     await sqlClient.end({ timeout: 5 });
     process.exit(0);

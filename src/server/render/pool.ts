@@ -32,6 +32,7 @@ class Pool {
   private pending = new Map<number, Pending>();
   private seq = 0;
   private disabled = false;
+  private closing = false;
 
   private spawn() {
     const entry = threadEntry();
@@ -49,7 +50,10 @@ class Pool {
       p?.resolve(m.ok);
       this.pump();
     });
-    w.on('error', (e) => {
+    let dead = false;
+    const onDeath = (e: unknown) => {
+      if (dead) return;
+      dead = true;
       log.error({ err: String(e) }, 'render thread crashed');
       if (slot.busy != null) {
         const p = this.pending.get(slot.busy);
@@ -59,6 +63,10 @@ class Pool {
       this.workers = this.workers.filter((x) => x !== slot);
       this.spawn();
       this.pump();
+    };
+    w.on('error', onDeath);
+    w.on('exit', (code) => {
+      if (!this.closing) onDeath(new Error(`render thread exited (${code})`));
     });
     this.workers.push(slot);
   }
@@ -94,6 +102,7 @@ class Pool {
   }
 
   async close() {
+    this.closing = true;
     await Promise.all(this.workers.map((s) => s.w.terminate()));
     this.workers = [];
   }

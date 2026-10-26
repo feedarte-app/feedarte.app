@@ -115,6 +115,13 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     }
   }
 
+  const still = await db.query.designs.findFirst({ where: eq(schema.designs.id, designId), columns: { id: true } });
+  if (!still) {
+    // design/feed deleted while rendering — don't resurrect a public feed
+    await writer.abort();
+    await storage.remove(prefix);
+    return;
+  }
   await writer.close();
   } catch (e) {
     await writer.abort();

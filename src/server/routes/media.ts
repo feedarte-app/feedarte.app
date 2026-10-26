@@ -7,7 +7,7 @@ import { eq, desc } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { db, schema, sqlClient as sql } from '../db';
 import { HttpError, requireUser } from '../auth';
-import { getDesign, getProject } from '../access';
+import { getDesign, getProject, isUuid } from '../access';
 import { fetchImageBytes, readIcon, renderProduct } from '../render/engine';
 import { iconSvg } from '../../shared/render';
 import * as storage from '../storage';
@@ -105,6 +105,7 @@ export async function mediaRoutes(app: FastifyInstance) {
 
   app.delete('/api/assets/:id', { preHandler: requireUser }, async (req) => {
     const id = (req.params as any).id;
+    if (!isUuid(id)) throw new HttpError(404, 'Не знайдено');
     const a = await db.query.assets.findFirst({ where: eq(schema.assets.id, id) });
     if (!a || !a.projectId) throw new HttpError(404, 'Не знайдено');
     await getProject(req.user!, a.projectId);

@@ -10,7 +10,10 @@ export const env = {
   isProd: process.env.NODE_ENV === 'production',
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
-  databaseUrl: process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedcraft',
+  // DB_HOST + POSTGRES_PASSWORD (docker) are combined safely — any characters in the password work
+  databaseUrl: process.env.DB_HOST
+    ? `postgres://${encodeURIComponent(process.env.DB_USER ?? 'feedcraft')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD ?? '')}@${process.env.DB_HOST}:${process.env.DB_PORT ?? 5432}/${encodeURIComponent(process.env.DB_NAME ?? 'feedcraft')}`
+    : (process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedcraft'),
   /** Public base URL used in output feeds and image links, no trailing slash */
   publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
   dataDir: path.resolve(process.env.DATA_DIR ?? './data'),

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { db, schema } from '../db';
+import { db, schema, sqlClient } from '../db';
 import {
   createSession,
   destroySession,
@@ -29,6 +29,17 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post('/api/auth/register', limited, async (req, reply) => {
     const body = creds.extend({ name: z.string().trim().max(100).default('') }).parse(req.body);
+    // serialize registrations so two simultaneous first sign-ups can't both become admin
+    // (transaction-scoped lock: released automatically, independent of pool connections)
+    let result: unknown;
+    await sqlClient.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(727003)`;
+      result = await registerLocked(body, reply);
+    });
+    return result;
+  });
+
+  async function registerLocked(body: { email: string; password: string; name: string }, reply: any) {
     const first = (await userCount()) === 0;
     const mode = first ? 'open' : await getSetting<RegistrationMode>('registrationMode', 'approval');
     if (mode === 'closed') throw new HttpError(403, 'Реєстрацію закрито. Зверніться до адміністратора.');
@@ -47,7 +58,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (u.status === 'pending') return { pending: true };
     await createSession(reply, u.id);
     return { user: { id: u.id, email: u.email, name: u.name, role: u.role } };
-  });
+  }
 
   app.post('/api/auth/login', limited, async (req, reply) => {
     const body = creds.parse(req.body);
