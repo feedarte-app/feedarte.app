@@ -214,6 +214,7 @@ export function Stage({ doc, product, zoom, ghost, maps, selectedIds, onPick, on
           return (
             <div
               key={l.id}
+              data-layer-id={l.id}
               className={`absolute ${l.locked ? 'cursor-default' : 'cursor-move'} hover:outline hover:outline-1 hover:outline-brand-500/60`}
               style={{
                 left: b.x * zoom,

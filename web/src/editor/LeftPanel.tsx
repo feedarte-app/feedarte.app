@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Store, Type, Image as ImageIcon, Shapes, Layers, Plus, ChevronRight, FolderOpen, Sparkles, Eye, EyeOff, Lock, Unlock, Upload, Trash2, Search, GitBranch, Square, Circle, Minus, Triangle, Star, GripVertical, LayoutTemplate,
+  Store, Type, Image as ImageIcon, Shapes, Layers, Plus, ChevronRight, FolderOpen, Sparkles, Eye, EyeOff, Lock, Unlock, Upload, Trash2, Search, GitBranch, Square, Circle, Minus, Triangle, Star, GripVertical, LayoutTemplate, CopyPlus, MoreHorizontal,
 } from 'lucide-react';
 import type { DesignDoc, FeedField, Layer, LayerGroup, LogoMaps, ProductData } from '../../../src/shared/types';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
 import { makeIcon, makeImage, makeShape, makeText, IF_DISCOUNT, makePriceBlock, makeDiscountBadge } from '../../../src/shared/layers';
 import { LogoLibrary } from './LogoLibrary';
+import type { LayerActions } from './ContextMenu';
+import { membersOf, moveRelative } from './groups';
 import { api, imgProxy } from '../api';
 import { useToast } from '../ui';
 import { DesignPreview } from './Preview';
@@ -34,6 +36,8 @@ interface Props {
   onLogosChanged: () => void;
   update: (fn: (d: DesignDoc) => DesignDoc, key?: string) => void;
   applyTemplate: (doc: DesignDoc) => void;
+  actions: LayerActions;
+  openMenu: (x: number, y: number, ids: string[]) => void;
 }
 
 export function LeftRail({ tab, setTab }: { tab: LeftTab; setTab: (t: LeftTab) => void }) {
@@ -423,9 +427,12 @@ function ObjectsTab({ doc, addLayer }: Props) {
 
 const TYPE_ICON: Record<string, any> = { text: Type, image: ImageIcon, shape: Square, icon: Star };
 
-function LayersTab({ doc, sel, setSel, update }: Props) {
-  const [drag, setDrag] = useState<string | null>(null);
-  const [over, setOver] = useState<string | null>(null);
+type DragItem = { kind: 'layer'; id: string } | { kind: 'group'; gid: string };
+type Over = { key: string; where: 'above' | 'below' | 'into' };
+
+function LayersTab({ doc, sel, setSel, update, actions, openMenu }: Props) {
+  const [drag, setDrag] = useState<DragItem | null>(null);
+  const [over, setOver] = useState<Over | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const top = [...doc.layers].reverse();
@@ -450,45 +457,113 @@ function LayersTab({ doc, sel, setSel, update }: Props) {
     }
   }
 
-  const onDrop = (targetId: string) => {
-    if (!drag || drag === targetId) return;
-    update((d) => {
-      const layers = [...d.layers];
-      const from = layers.findIndex((x) => x.id === drag);
-      const [m] = layers.splice(from, 1);
-      const to = layers.findIndex((x) => x.id === targetId);
-      const target = layers[to];
-      layers.splice(to + 1, 0, { ...m, groupId: target?.groupId ?? null } as Layer);
-      return { ...d, layers };
-    });
+  const dragIds = (it: DragItem) => (it.kind === 'layer' ? [it.id] : membersOf(doc, it.gid));
+  const zoneOf = (e: React.DragEvent, allowInto: boolean): Over['where'] => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = (e.clientY - r.top) / r.height;
+    if (allowInto) return y < 0.35 ? 'above' : 'into';
+    return y < 0.5 ? 'above' : 'below';
+  };
+  const endDrag = () => {
     setDrag(null);
     setOver(null);
   };
 
-  const Row = ({ l, depth }: { l: Layer; depth: number }) => {
+  /** drop onto a layer row */
+  const dropOnLayer = (target: Layer, where: 'above' | 'below') => {
+    if (!drag) return;
+    const ids = dragIds(drag);
+    if (ids.includes(target.id)) return endDrag();
+    update((d) => {
+      if (drag.kind === 'group') {
+        // a group never splits another group: move around the target's whole group (or the plain layer)
+        if (target.groupId === drag.gid) return d;
+        const anchor = target.groupId ? membersOf(d, target.groupId) : [target.id];
+        return moveRelative(d, ids, anchor, where);
+      }
+      // a single layer joins the group of the row it was dropped next to (or leaves it)
+      return moveRelative(d, ids, [target.id], where, target.groupId ?? null);
+    });
+    endDrag();
+  };
+  /** drop onto a group header: top part → above the group, rest → into the group (on top) */
+  const dropOnGroup = (g: LayerGroup, where: Over['where']) => {
+    if (!drag) return;
+    update((d) => {
+      const members = membersOf(d, g.id);
+      if (drag.kind === 'group') {
+        if (drag.gid === g.id) return d;
+        return moveRelative(d, dragIds(drag), members, where === 'below' ? 'below' : 'above');
+      }
+      if (where === 'into') return moveRelative(d, [drag.id], members, 'above', g.id);
+      return moveRelative(d, [drag.id], members, 'above', null);
+    });
+    endDrag();
+  };
+
+  const indicator = (key: string) =>
+    over?.key === key
+      ? over.where === 'into'
+        ? 'ring-2 ring-brand-400 bg-brand-50/60'
+        : over.where === 'above'
+          ? 'shadow-[inset_0_2px_0_0_#FF6B1A]'
+          : 'shadow-[inset_0_-2px_0_0_#FF6B1A]'
+      : '';
+
+  const iconBtn = ({ title, onClick, children, testid }: { title: string; onClick: (e: React.MouseEvent) => void; children: any; testid?: string }) => (
+    <button
+      data-testid={testid}
+      className="shrink-0 w-6 h-6 -my-1 rounded-lg flex items-center justify-center text-ink-400 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-ink-800 transition"
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+    >
+      {children}
+    </button>
+  );
+  const menuAt = (e: React.MouseEvent, ids: string[]) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openMenu(e.type === 'contextmenu' ? e.clientX : r.right - 8, e.type === 'contextmenu' ? e.clientY : r.bottom + 4, ids);
+  };
+
+  const renderRow = (l: Layer, depth: number) => {
     const Icon = TYPE_ICON[l.type];
     const isSel = sel.includes(l.id);
+    const key = 'l:' + l.id;
     return (
       <div
-        draggable
-        onDragStart={() => setDrag(l.id)}
+        key={l.id}
+        draggable={renaming !== l.id}
+        data-testid={`layer-row-${l.id}`}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', l.id);
+          setDrag({ kind: 'layer', id: l.id });
+        }}
         onDragOver={(e) => {
+          if (!drag) return;
           e.preventDefault();
-          setOver(l.id);
+          const where = zoneOf(e, false);
+          if (over?.key !== key || over.where !== where) setOver({ key, where });
         }}
-        onDragEnd={() => {
-          setDrag(null);
-          setOver(null);
+        onDragEnd={endDrag}
+        onDrop={(e) => {
+          e.preventDefault();
+          dropOnLayer(l, zoneOf(e, false) as 'above' | 'below');
         }}
-        onDrop={() => onDrop(l.id)}
         onClick={(e) => {
           if (e.shiftKey || e.metaKey || e.ctrlKey) setSel(sel.includes(l.id) ? sel.filter((x) => x !== l.id) : [...sel, l.id]);
           else setSel([l.id]);
         }}
-        className={`group flex items-center gap-2 h-10 pr-2.5 rounded-xl cursor-pointer text-[13px] transition-colors ${isSel ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${over === l.id && drag !== l.id ? 'ring-2 ring-brand-300' : ''}`}
+        onContextMenu={(e) => menuAt(e, [l.id])}
+        className={`group flex items-center gap-2 h-10 pr-2 rounded-xl cursor-pointer text-[13px] transition-colors ${isSel ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${indicator(key)} ${drag?.kind === 'layer' && drag.id === l.id ? 'opacity-40' : ''} ${drag?.kind === 'group' && l.groupId === drag.gid ? 'opacity-40' : ''}`}
         style={{ paddingLeft: 10 + depth * 18 }}
       >
-        <GripVertical className="w-3.5 h-3.5 text-ink-300 shrink-0" />
+        <GripVertical className="w-3.5 h-3.5 text-ink-300 shrink-0 cursor-grab" />
         <Icon className="w-3.5 h-3.5 shrink-0 text-ink-500" />
         {renaming === l.id ? (
           <input
@@ -510,6 +585,8 @@ function LayersTab({ doc, sel, setSel, update }: Props) {
           </span>
         )}
         {l.condition?.rules?.length ? <span title="Має умову відображення"><GitBranch className="w-3.5 h-3.5 text-amber-600 shrink-0" /></span> : null}
+        {iconBtn({ title: 'Дублювати (Ctrl+D)', testid: 'dup-layer', onClick: () => actions.duplicate([l.id]), children: <CopyPlus className="w-3.5 h-3.5" /> })}
+        {iconBtn({ title: 'Ще дії', onClick: (e) => menuAt(e, [l.id]), children: <MoreHorizontal className="w-3.5 h-3.5" /> })}
         <button className={`shrink-0 ${l.locked ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); set(l.id, { locked: !l.locked }); }} title="Заблокувати">
           {l.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
         </button>
@@ -522,18 +599,36 @@ function LayersTab({ doc, sel, setSel, update }: Props) {
 
   return (
     <div>
-      <Title hint="Shift+клік — виділити кілька, Ctrl+G — згрупувати. Клік по елементу групи на полотні виділяє всю групу, повторний — окремий елемент.">Шари</Title>
+      <Title hint="Перетягуйте шари й групи, щоб змінити порядок (шар на заголовок групи — додати в групу). Правий клік — дублювати, копіювати, вставити. Shift+клік — кілька, Ctrl+G — згрупувати.">Шари</Title>
       <div className="px-2 pb-4">
-        {rows.map((r) =>
-          r.kind === 'layer' ? (
-            <Row key={r.l.id} l={r.l} depth={r.depth} />
-          ) : (
+        {rows.map((r) => {
+          if (r.kind === 'layer') return renderRow(r.l, r.depth);
+          const ids = r.members.map((m) => m.id);
+          const key = 'g:' + r.g.id;
+          return (
             <div
               key={r.g.id}
-              onClick={() => setSel(r.members.map((m) => m.id))}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => drag && update((d) => ({ ...d, layers: d.layers.map((x) => (x.id === drag ? ({ ...x, groupId: r.g.id } as Layer) : x)) }))}
-              className={`group flex items-center gap-2 h-10 px-2.5 rounded-xl cursor-pointer text-[13px] font-medium transition-colors ${r.members.length && r.members.every((m) => sel.includes(m.id)) ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'}`}
+              data-testid={`group-row-${r.g.id}`}
+              draggable={renaming !== r.g.id}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', r.g.id);
+                setDrag({ kind: 'group', gid: r.g.id });
+              }}
+              onDragEnd={endDrag}
+              onClick={() => setSel(ids)}
+              onContextMenu={(e) => menuAt(e, ids)}
+              onDragOver={(e) => {
+                if (!drag) return;
+                e.preventDefault();
+                const where = drag.kind === 'group' ? zoneOf(e, false) : zoneOf(e, true);
+                if (over?.key !== key || over.where !== where) setOver({ key, where });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                dropOnGroup(r.g, drag?.kind === 'group' ? zoneOf(e, false) : zoneOf(e, true));
+              }}
+              className={`group flex items-center gap-2 h-10 px-2.5 pr-2 rounded-xl cursor-pointer text-[13px] font-medium transition-colors ${r.members.length && r.members.every((m) => sel.includes(m.id)) ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${indicator(key)} ${drag?.kind === 'group' && drag.gid === r.g.id ? 'opacity-40' : ''}`}
             >
               <button className="text-ink-400 shrink-0" onClick={(e) => { e.stopPropagation(); setCollapsed({ ...collapsed, [r.g.id]: !collapsed[r.g.id] }); }}>
                 <ChevronRight className={`w-3.5 h-3.5 transition-transform ${collapsed[r.g.id] ? '' : 'rotate-90'}`} />
@@ -545,12 +640,14 @@ function LayersTab({ doc, sel, setSel, update }: Props) {
                 <span className="truncate flex-1" onDoubleClick={() => setRenaming(r.g.id)}>{r.g.name}</span>
               )}
               {r.g.condition?.rules?.length ? <GitBranch className="w-3.5 h-3.5 text-amber-600 shrink-0" /> : null}
+              {iconBtn({ title: 'Дублювати групу (Ctrl+D)', testid: 'dup-group', onClick: () => actions.duplicate(ids), children: <CopyPlus className="w-3.5 h-3.5" /> })}
+              {iconBtn({ title: 'Ще дії', onClick: (e) => menuAt(e, ids), children: <MoreHorizontal className="w-3.5 h-3.5" /> })}
               <button className={`shrink-0 ${r.g.visible === false ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); setG(r.g.id, { visible: r.g.visible === false }); }} title="Показати/сховати групу">
                 {r.g.visible === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
-          ),
-        )}
+          );
+        })}
         {!top.length && <div className="text-sm text-ink-500 px-2">Порожньо. Додайте елементи з вкладок зліва.</div>}
       </div>
     </div>

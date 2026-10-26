@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff } from 'lucide-react';
+import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff, Plus, Minus } from 'lucide-react';
 import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
-import { cleanup, duplicateSet, groupOf, makeGroup, membersOf, moveSet, patchGroup, selectedGroup, ungroup } from './groups';
+import { cleanup, duplicateSet, groupOf, makeGroup, membersOf, moveBlockAbove, moveSet, pasteSnapshot, patchGroup, selectedGroup, snapshot, ungroup, type Snapshot } from './groups';
 import { uid } from '../../../src/shared/layers';
 import { api } from '../api';
 import { Modal, Spinner, useToast } from '../ui';
 import { useDocHistory, patchLayer } from './state';
 import { Stage } from './Stage';
 import { LeftPanel, LeftRail, type LeftTab } from './LeftPanel';
+import { ContextMenu, type MenuState, type LayerActions } from './ContextMenu';
 import { RightPanel } from './RightPanel';
 import { loadFonts } from './browserRender';
 
@@ -84,6 +85,113 @@ function Editor({ meta }: { meta: any }) {
   }, []);
   const z = zoom === 'fit' ? Math.max(0.1, Math.min((wrapSize.w - 120) / doc.width, (wrapSize.h - 160) / doc.height, 1)) : zoom;
 
+  // ---- zoom with wheel / pinch, anchored at the cursor ----
+  const stageBox = useRef<HTMLDivElement>(null);
+  const zRef = useRef(z);
+  zRef.current = z;
+  const anchor = useRef<{ cx: number; cy: number; dx: number; dy: number } | null>(null);
+  const zoomTo = useCallback((next: number, cx?: number, cy?: number) => {
+    const nz = Math.max(0.1, Math.min(4, next));
+    const box = stageBox.current?.getBoundingClientRect();
+    const wrap = stageWrap.current?.getBoundingClientRect();
+    if (box && wrap) {
+      const px = cx ?? wrap.left + wrap.width / 2;
+      const py = cy ?? wrap.top + wrap.height / 2;
+      anchor.current = { cx: px, cy: py, dx: (px - box.left) / zRef.current, dy: (py - box.top) / zRef.current };
+    }
+    setZoom(Math.round(nz * 1000) / 1000);
+  }, []);
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const el = stageWrap.current;
+    const box = stageBox.current?.getBoundingClientRect();
+    if (!a || !el || !box) return;
+    anchor.current = null;
+    el.scrollLeft += box.left + a.dx * z - a.cx;
+    el.scrollTop += box.top + a.dy * z - a.cy;
+  }, [z]);
+  useEffect(() => {
+    const el = stageWrap.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey) return; // horizontal scroll
+      const pinch = e.ctrlKey || e.metaKey; // trackpad pinch arrives as ctrl+wheel
+      // a classic mouse wheel: line mode or coarse integer steps without horizontal component
+      const mouse = e.deltaMode === 1 || (e.deltaX === 0 && Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 40);
+      if (!pinch && !mouse) return; // two-finger trackpad swipe → native panning
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+      const k = pinch ? 0.01 : 0.0015;
+      zoomTo(zRef.current * Math.exp(-Math.max(-300, Math.min(300, dy)) * k), e.clientX, e.clientY);
+    };
+    // Safari pinch
+    let g0 = 1;
+    const gs = (e: any) => {
+      e.preventDefault();
+      g0 = zRef.current;
+    };
+    const gc = (e: any) => {
+      e.preventDefault();
+      zoomTo(g0 * e.scale, e.clientX, e.clientY);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('gesturestart', gs as any);
+    el.addEventListener('gesturechange', gc as any);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('gesturestart', gs as any);
+      el.removeEventListener('gesturechange', gc as any);
+    };
+  }, [zoomTo]);
+
+  // space + drag (or middle mouse button) → pan the canvas
+  const spaceDown = useRef(false);
+  const [panMode, setPanMode] = useState(false);
+  useEffect(() => {
+    const isField = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+    };
+    const kd = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isField(e.target)) {
+        e.preventDefault();
+        if (!spaceDown.current) {
+          spaceDown.current = true;
+          setPanMode(true);
+        }
+      }
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        spaceDown.current = false;
+        setPanMode(false);
+      }
+    };
+    window.addEventListener('keydown', kd);
+    window.addEventListener('keyup', ku);
+    return () => {
+      window.removeEventListener('keydown', kd);
+      window.removeEventListener('keyup', ku);
+    };
+  }, []);
+  const startPan = (e: React.PointerEvent) => {
+    if (!(spaceDown.current || e.button === 1)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = stageWrap.current!;
+    const sx = e.clientX, sy = e.clientY, sl = el.scrollLeft, st = el.scrollTop;
+    const mv = (ev: PointerEvent) => {
+      el.scrollLeft = sl - (ev.clientX - sx);
+      el.scrollTop = st - (ev.clientY - sy);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointerup', up);
+  };
+
   // autosave draft
   const first = useRef(true);
   useEffect(() => {
@@ -136,6 +244,11 @@ function Editor({ meta }: { meta: any }) {
     [sel],
   );
 
+  const pickIds = (id: string) => {
+    const g = groupOf(docRef.current, id);
+    return g ? membersOf(docRef.current, g.id) : [id];
+  };
+
   const setLayer = useCallback((patch: Partial<Layer>, key?: string) => {
     if (!selectedId) return;
     update((d) => patchLayer(d, selectedId, patch), key);
@@ -162,22 +275,59 @@ function Editor({ meta }: { meta: any }) {
     void gid;
   }, [update]);
 
-  const duplicate = useCallback(() => {
-    if (!sel.length) return;
-    let ids: string[] = [];
+  const duplicateIds = useCallback((ids: string[] = sel) => {
+    if (!ids.length) return;
+    let out: string[] = [];
     update((d) => {
-      const r = duplicateSet(d, sel);
-      ids = r.ids;
+      const r = duplicateSet(d, ids);
+      out = r.ids;
       return r.doc;
     });
-    setSel(ids);
+    setSel(out);
   }, [sel, update]);
+  const duplicate = useCallback(() => duplicateIds(sel), [duplicateIds, sel]);
 
-  const remove = useCallback(() => {
-    if (!sel.length) return;
-    update((d) => cleanup({ ...d, layers: d.layers.filter((l) => !sel.includes(l.id)) }));
-    setSel([]);
+  const removeIds = useCallback((ids: string[] = sel) => {
+    if (!ids.length) return;
+    update((d) => cleanup({ ...d, layers: d.layers.filter((l) => !ids.includes(l.id)) }));
+    setSel((s) => s.filter((x) => !ids.includes(x)));
   }, [sel, update]);
+  const remove = useCallback(() => removeIds(sel), [removeIds, sel]);
+
+  // clipboard: a snapshot of layers (+ whole groups); kept in localStorage so it also works between designs
+  const CLIP_KEY = 'feedarte:clipboard';
+  const copyIds = useCallback((ids: string[] = sel) => {
+    if (!ids.length) return;
+    const snap = snapshot(docRef.current, ids);
+    try {
+      localStorage.setItem(CLIP_KEY, JSON.stringify(snap));
+    } catch {
+      /* storage unavailable */
+    }
+    clipMem.current = snap;
+    toast(`Скопійовано: ${snap.layers.length} елем.`);
+  }, [sel]);
+  const clipMem = useRef<Snapshot | null>(null);
+  const readClip = (): Snapshot | null => {
+    try {
+      const raw = localStorage.getItem(CLIP_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    return clipMem.current;
+  };
+  const paste = useCallback(() => {
+    const snap = readClip();
+    if (!snap?.layers?.length) return;
+    let out: string[] = [];
+    update((d) => {
+      const r = pasteSnapshot(d, snap, 30);
+      out = r.ids;
+      return r.doc;
+    });
+    setSel(out);
+  }, [update]);
 
   const order = useCallback((dir: 'up' | 'down' | 'top' | 'bottom') => {
     if (!sel.length) return;
@@ -195,7 +345,31 @@ function Editor({ meta }: { meta: any }) {
     update((d) => ungroup(d, g.id));
   }, [selGroup, selectedId, update]);
 
-  const clipboardMany = useRef<string[]>([]);
+
+  const moveBlock = useCallback((ids: string[], targetId: string) => {
+    update((d) => moveBlockAbove(d, ids, targetId));
+  }, [update]);
+  const ungroupId = useCallback((gid: string) => update((d) => ungroup(d, gid)), [update]);
+  const groupIds = useCallback((ids: string[]) => {
+    if (ids.length < 2) return;
+    let gid = '';
+    update((d) => {
+      const r = makeGroup(d, ids);
+      gid = r.gid;
+      return r.doc;
+    });
+    setSel(ids);
+    return gid;
+  }, [update]);
+  const hasClip = () => !!readClip()?.layers?.length;
+  const actions: LayerActions = { duplicate: duplicateIds, copy: copyIds, paste, remove: removeIds, group: groupIds, ungroup: ungroupId, moveBlock, hasClip };
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  /** open the context menu for these ids (selecting them first unless they're already part of the selection) */
+  const openMenu = useCallback((x: number, y: number, ids: string[]) => {
+    const target = ids.length && ids.every((i) => sel.includes(i)) ? sel : ids;
+    if (ids.length && target !== sel) setSel(target);
+    setMenu({ x, y, ids: target });
+  }, [sel]);
 
   // keyboard
   useEffect(() => {
@@ -204,7 +378,19 @@ function Editor({ meta }: { meta: any }) {
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
-      if (mod && k === 'z') {
+      if (mod && (k === '=' || k === '+')) {
+        e.preventDefault();
+        zoomTo(zRef.current * 1.25);
+      } else if (mod && k === '-') {
+        e.preventDefault();
+        zoomTo(zRef.current / 1.25);
+      } else if (mod && k === '0') {
+        e.preventDefault();
+        setZoom('fit');
+      } else if (mod && k === '1') {
+        e.preventDefault();
+        zoomTo(1);
+      } else if (mod && k === 'z') {
         e.preventDefault();
         e.shiftKey ? redo() : undo();
       } else if (mod && k === 'y') {
@@ -220,18 +406,14 @@ function Editor({ meta }: { meta: any }) {
         e.preventDefault();
         setSel(docRef.current.layers.filter((l) => l.visible && !l.locked).map((l) => l.id));
       } else if (mod && k === 'c' && sel.length) {
-        clipboardMany.current = [...sel];
-      } else if (mod && k === 'v' && clipboardMany.current.length) {
+        copyIds(sel);
+      } else if (mod && k === 'x' && sel.length) {
         e.preventDefault();
-        const src = clipboardMany.current.filter((id) => docRef.current.layers.some((l) => l.id === id));
-        if (!src.length) return;
-        let ids: string[] = [];
-        update((d) => {
-          const r = duplicateSet(d, src, 30);
-          ids = r.ids;
-          return r.doc;
-        });
-        setSel(ids);
+        copyIds(sel);
+        remove();
+      } else if (mod && k === 'v') {
+        e.preventDefault();
+        paste();
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length) {
         e.preventDefault();
         remove();
@@ -247,7 +429,7 @@ function Editor({ meta }: { meta: any }) {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [undo, redo, duplicate, remove, doGroup, doUngroup, sel, selLayers, update, patchMany, products.length]);
+  }, [undo, redo, duplicate, remove, doGroup, doUngroup, copyIds, paste, zoomTo, sel, selLayers, update, patchMany, products.length]);
 
   const dirtyVsPublished = useMemo(() => JSON.stringify(doc) !== JSON.stringify(published), [doc, published]);
 
@@ -297,12 +479,17 @@ function Editor({ meta }: { meta: any }) {
             <button className="w-9 h-9 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 disabled:opacity-30 transition" onClick={undo} disabled={!canUndo} title="Скасувати (Ctrl+Z)"><Undo2 className="w-4 h-4" /></button>
             <button className="w-9 h-9 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 disabled:opacity-30 transition" onClick={redo} disabled={!canRedo} title="Повторити (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></button>
           </div>
-          <select className="ed-input w-[92px] rounded-full font-medium" value={String(zoom)} onChange={(e) => setZoom(e.target.value === 'fit' ? 'fit' : Number(e.target.value))}>
-            <option value="fit">{Math.round(z * 100)}%</option>
-            {[0.25, 0.4, 0.5, 0.75, 1].map((v) => (
-              <option key={v} value={v}>{v * 100}%</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-0.5">
+            <button className="w-8 h-8 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 transition" onClick={() => zoomTo(z / 1.25)} title="Зменшити (Ctrl −)"><Minus className="w-4 h-4" /></button>
+            <select data-testid="zoom" className="ed-input w-[92px] rounded-full font-medium" value={zoom === 'fit' ? 'fit' : 'cur'} onChange={(e) => (e.target.value === 'fit' ? setZoom('fit') : e.target.value !== 'cur' && zoomTo(Number(e.target.value)))} title="Масштаб: Ctrl + колесо / жест щипка на тачпаді; пробіл + перетягування — рух полотна">
+              <option value="cur" hidden={zoom === 'fit'}>{Math.round(z * 100)}%</option>
+              <option value="fit">{zoom === 'fit' ? `${Math.round(z * 100)}%` : 'Вмістити'}</option>
+              {[0.25, 0.5, 0.75, 1, 1.5, 2].map((v) => (
+                <option key={v} value={v}>{v * 100}%</option>
+              ))}
+            </select>
+            <button className="w-8 h-8 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 transition" onClick={() => zoomTo(z * 1.25)} title="Збільшити (Ctrl +)"><Plus className="w-4 h-4" /></button>
+          </div>
         </div>
         <div className="text-xs text-ink-500 flex items-center gap-1 w-28 justify-end">
           {saveState === 'saving' && <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Збереження…</>}
@@ -338,6 +525,8 @@ function Editor({ meta }: { meta: any }) {
           maps={maps}
           onLogosChanged={reloadMaps}
           update={update}
+          actions={actions}
+          openMenu={openMenu}
           applyTemplate={(d) => {
             update(() => ({ ...d, format: doc.format }));
             setSelectedId(null);
@@ -367,9 +556,21 @@ function Editor({ meta }: { meta: any }) {
               <div className="mt-2 text-xs text-ink-500">Погортайте товари внизу (зі знижкою / без), щоб перевірити динамічні елементи, і натисніть «Опублікувати».</div>
             </div>
           )}
-          <div ref={stageWrap} className="flex-1 overflow-auto relative bg-[radial-gradient(#d9d9de_1px,transparent_1px)] [background-size:22px_22px]" onPointerDown={() => setSelectedId(null)}>
+          <div
+            ref={stageWrap}
+            data-testid="stage-wrap"
+            className={`flex-1 overflow-auto relative bg-[radial-gradient(#d9d9de_1px,transparent_1px)] [background-size:22px_22px] ${panMode ? 'cursor-grab [&_*]:!cursor-grab' : ''}`}
+            onPointerDownCapture={startPan}
+            onPointerDown={(e) => e.button === 0 && setSelectedId(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const hit = (e.target as HTMLElement).closest('[data-layer-id]') as HTMLElement | null;
+              const id = hit?.dataset.layerId;
+              openMenu(e.clientX, e.clientY, id ? (pickIds(id)) : []);
+            }}
+          >
             <div className="min-h-full min-w-full flex items-center justify-center px-14 pt-14 pb-24" style={{ width: 'max-content', height: 'max-content' }}>
-              <div className="relative">
+              <div className="relative" ref={stageBox}>
                 <div className="absolute -top-6 left-0 text-[11px] font-medium text-ink-500 bg-white/80 rounded-full px-2 py-0.5">{doc.width}×{doc.height}</div>
                 <Stage
                   doc={doc}
@@ -446,6 +647,7 @@ function Editor({ meta }: { meta: any }) {
           onLogosChanged={reloadMaps}
         />
       </div>
+      {menu && <ContextMenu menu={menu} doc={doc} actions={actions} onClose={() => setMenu(null)} />}
       {serverPreview && products[idx] && (
         <Modal open onClose={() => setServerPreview(false)} title="Серверний рендер (так картинка буде у фіді)" width="max-w-3xl">
           <ServerPreview designId={design.id} productId={products[idx].id} doc={doc} />
