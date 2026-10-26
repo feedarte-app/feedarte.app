@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2, Check, AlertTriangle } from 'lucide-react';
 
 export function Spinner({ className = 'w-4 h-4' }: { className?: string }) {
@@ -13,18 +14,19 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: { 
     return () => window.removeEventListener('keydown', h);
   }, [open, onClose]);
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[8vh] overflow-y-auto" onMouseDown={onClose}>
-      <div className={`card w-full ${width} p-0`} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-ink-200 px-5 h-14">
-          <h3 className="font-semibold">{title}</h3>
-          <button className="btn-ghost btn-sm px-2" onClick={onClose} aria-label="Закрити">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink-900/25 backdrop-blur-[3px] p-4 pt-[7vh] overflow-y-auto animate-backdrop" onMouseDown={onClose}>
+      <div className={`island w-full ${width} p-0 shadow-lift animate-pop-in`} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 pt-5 pb-1">
+          <h3 className="text-[17px] font-semibold tracking-tight">{title}</h3>
+          <button className="w-8 h-8 rounded-full flex items-center justify-center text-ink-500 hover:bg-ink-100 hover:text-ink-900 transition" onClick={onClose} aria-label="Закрити">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="px-6 pb-6 pt-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -42,10 +44,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none">
         {items.map((t) => (
-          <div key={t.id} className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm shadow-lg ${t.kind === 'error' ? 'bg-red-600 text-white' : 'bg-ink-900 text-white'}`}>
-            {t.kind === 'error' ? <AlertTriangle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+          <div key={t.id} className={`flex items-center gap-2.5 rounded-full pl-2 pr-5 py-2 text-sm shadow-lift animate-slide-up ${t.kind === 'error' ? 'bg-red-600 text-white' : 'bg-ink-900 text-white'}`}>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center ${t.kind === 'error' ? 'bg-white/20' : 'bg-brand-500'}`}>
+              {t.kind === 'error' ? <AlertTriangle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+            </span>
             {t.text}
           </div>
         ))}
@@ -75,9 +79,9 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function Empty({ icon, title, text, action }: { icon: ReactNode; title: string; text?: string; action?: ReactNode }) {
   return (
-    <div className="card flex flex-col items-center justify-center text-center py-14 px-6">
-      <div className="w-12 h-12 rounded-full bg-ink-100 flex items-center justify-center text-ink-500 mb-3">{icon}</div>
-      <div className="font-semibold">{title}</div>
+    <div className="island flex flex-col items-center justify-center text-center py-16 px-6 animate-fade-in">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-brand-50 to-brand-100 flex items-center justify-center text-brand-600 mb-4 shadow-[inset_0_0_0_1px_rgba(255,107,26,.15)]">{icon}</div>
+      <div className="font-semibold text-[17px] tracking-tight">{title}</div>
       {text && <div className="text-sm text-ink-500 mt-1 max-w-md">{text}</div>}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -88,9 +92,9 @@ export function CopyField({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <input readOnly value={value} className="input h-9 font-mono text-xs" onFocus={(e) => e.target.select()} />
+      <input readOnly value={value} className="input h-9 rounded-full font-mono text-xs" onFocus={(e) => e.target.select()} />
       <button
-        className="btn-outline btn-sm h-9"
+        className={`btn-sm h-9 ${copied ? 'btn bg-emerald-50 text-emerald-700 border border-emerald-200' : 'btn-outline'}`}
         onClick={() => {
           navigator.clipboard?.writeText(value);
           setCopied(true);
@@ -101,4 +105,8 @@ export function CopyField({ value }: { value: string }) {
       </button>
     </div>
   );
+}
+
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`skeleton ${className}`} />;
 }

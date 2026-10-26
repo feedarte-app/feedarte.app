@@ -77,7 +77,7 @@ function Editor({ meta }: { meta: any }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const z = zoom === 'fit' ? Math.max(0.1, Math.min((wrapSize.w - 120) / doc.width, (wrapSize.h - 110) / doc.height, 1)) : zoom;
+  const z = zoom === 'fit' ? Math.max(0.1, Math.min((wrapSize.w - 120) / doc.width, (wrapSize.h - 160) / doc.height, 1)) : zoom;
 
   // autosave draft
   const first = useRef(true);
@@ -210,29 +210,29 @@ function Editor({ meta }: { meta: any }) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-ink-50">
+    <div className="h-full flex flex-col bg-canvas p-3 gap-3">
       {/* top bar */}
-      <div className="h-16 bg-white border-b border-ink-200 flex items-center px-3 gap-3 shrink-0">
-        <button className="btn-ghost px-2" onClick={() => nav(`/feeds/${feed.id}`)} title="До фіду">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="island h-[68px] flex items-center pl-3 pr-3 gap-3 shrink-0 animate-fade-in">
+        <button className="w-11 h-11 rounded-full border border-ink-200 flex items-center justify-center text-ink-700 hover:bg-ink-50 hover:-translate-x-0.5 transition" onClick={() => nav(`/feeds/${feed.id}`)} title="До фіду">
+          <ArrowLeft className="w-[18px] h-[18px]" />
         </button>
         <div className="min-w-0">
-          <div className="font-semibold truncate max-w-[260px]">{design.name}</div>
+          <div className="font-semibold text-[15px] tracking-tight truncate max-w-[260px]">{design.name}</div>
           <div className="text-[11px] text-ink-500 truncate">{meta.project.name} · {feed.name}</div>
         </div>
         <div className="flex-1 flex items-center justify-center gap-3">
-          <div className="seg w-[300px]">
+          <div className="seg seg-accent w-[310px] border border-ink-200/70 bg-white">
             <button data-on={ghost} onClick={() => setGhost(true)}>Всі умови</button>
             <button data-on={!ghost} onClick={() => setGhost(false)}>Активні елементи</button>
           </div>
           <span title="«Всі умови» — показує напівпрозорими шари, які для цього товару приховані умовою. «Активні елементи» — саме так, як буде в рекламі." className="text-ink-400">
             <Info className="w-4 h-4" />
           </span>
-          <div className="flex items-center gap-0.5 ml-3">
-            <button className="btn-ghost btn-sm px-2" onClick={undo} disabled={!canUndo} title="Скасувати (Ctrl+Z)"><Undo2 className="w-4 h-4" /></button>
-            <button className="btn-ghost btn-sm px-2" onClick={redo} disabled={!canRedo} title="Повторити (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></button>
+          <div className="flex items-center gap-0.5 ml-2">
+            <button className="w-9 h-9 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 disabled:opacity-30 transition" onClick={undo} disabled={!canUndo} title="Скасувати (Ctrl+Z)"><Undo2 className="w-4 h-4" /></button>
+            <button className="w-9 h-9 rounded-full flex items-center justify-center text-ink-700 hover:bg-ink-100 disabled:opacity-30 transition" onClick={redo} disabled={!canRedo} title="Повторити (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></button>
           </div>
-          <select className="ed-input w-24 ml-2" value={String(zoom)} onChange={(e) => setZoom(e.target.value === 'fit' ? 'fit' : Number(e.target.value))}>
+          <select className="ed-input w-[92px] rounded-full font-medium" value={String(zoom)} onChange={(e) => setZoom(e.target.value === 'fit' ? 'fit' : Number(e.target.value))}>
             <option value="fit">{Math.round(z * 100)}%</option>
             {[0.25, 0.4, 0.5, 0.75, 1].map((v) => (
               <option key={v} value={v}>{v * 100}%</option>
@@ -248,13 +248,14 @@ function Editor({ meta }: { meta: any }) {
         <button className="btn-outline btn-sm h-10" onClick={() => setServerPreview(true)} disabled={!products[idx]} title="Відрендерити цей товар на сервері — саме так картинка потрапить у фід">
           <ServerCog className="w-4 h-4" /> Перевірити
         </button>
-        <button className="btn-danger" onClick={discard} disabled={!published || !dirtyVsPublished}>Скасувати</button>
+        <button className="btn-outline text-ink-500" onClick={discard} disabled={!published || !dirtyVsPublished}>Скасувати</button>
         <button className="btn-primary min-w-[130px]" onClick={publish} disabled={publishing || (!!published && !dirtyVsPublished)}>
           {publishing && <Spinner />} {published && !dirtyVsPublished ? 'Опубліковано' : 'Опублікувати'}
         </button>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 gap-3">
+        <div className="island flex overflow-hidden shrink-0 animate-fade-in">
         <LeftRail tab={tab} setTab={setTab} />
         <LeftPanel
           tab={tab}
@@ -273,11 +274,12 @@ function Editor({ meta }: { meta: any }) {
             setSelectedId(null);
           }}
         />
-        <div className="flex-1 flex flex-col min-w-0">
-          <div ref={stageWrap} className="flex-1 overflow-auto relative" onPointerDown={() => setSelectedId(null)}>
-            <div className="min-h-full min-w-full flex items-center justify-center p-14" style={{ width: 'max-content', height: 'max-content' }}>
+        </div>
+        <div className="flex-1 flex flex-col min-w-0 rounded-3xl bg-[#E9E9EC] relative overflow-hidden">
+          <div ref={stageWrap} className="flex-1 overflow-auto relative bg-[radial-gradient(#d9d9de_1px,transparent_1px)] [background-size:22px_22px]" onPointerDown={() => setSelectedId(null)}>
+            <div className="min-h-full min-w-full flex items-center justify-center px-14 pt-14 pb-24" style={{ width: 'max-content', height: 'max-content' }}>
               <div className="relative">
-                <div className="absolute -top-5 left-0 text-[11px] text-ink-500">{doc.width}×{doc.height}</div>
+                <div className="absolute -top-6 left-0 text-[11px] font-medium text-ink-500 bg-white/80 rounded-full px-2 py-0.5">{doc.width}×{doc.height}</div>
                 <Stage
                   doc={doc}
                   product={product}
@@ -296,29 +298,29 @@ function Editor({ meta }: { meta: any }) {
             </div>
           </div>
           {/* product navigator */}
-          <div className="h-16 flex items-center justify-center gap-2 shrink-0 relative">
-            <select className="ed-input w-36 bg-white border-ink-200" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-full bg-white/90 backdrop-blur border border-ink-200/70 shadow-lift z-20">
+            <select className="ed-input w-36 rounded-full" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
               <option value="all">Усі товари</option>
               <option value="discount">Зі знижкою</option>
               <option value="nodiscount">Без знижки</option>
             </select>
-            <button className="w-10 h-10 rounded-full bg-white border border-ink-200 flex items-center justify-center disabled:opacity-40" disabled={idx <= 0} onClick={() => setIdx(idx - 1)} title="Попередній (,)">
+            <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-ink-100 disabled:opacity-30 transition" disabled={idx <= 0} onClick={() => setIdx(idx - 1)} title="Попередній (,)">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="h-10 rounded-full bg-white border border-ink-200 px-4 flex items-center gap-2 max-w-[460px]" onClick={() => setSearchOpen(!searchOpen)}>
+            <button className="h-9 rounded-full bg-ink-100 hover:bg-ink-200/70 px-4 flex items-center gap-2 max-w-[420px] transition" onClick={() => setSearchOpen(!searchOpen)}>
               <Search className="w-4 h-4 text-ink-400 shrink-0" />
               <span className="truncate text-sm">{products[idx]?.title ?? (products.length ? '' : 'Немає товарів')}</span>
               <span className="text-xs text-ink-400 shrink-0">{products.length ? `${idx + 1}/${total}` : ''}</span>
             </button>
-            <button className="w-10 h-10 rounded-full bg-white border border-ink-200 flex items-center justify-center disabled:opacity-40" disabled={idx >= products.length - 1} onClick={() => setIdx(idx + 1)} title="Наступний (.)">
+            <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-ink-100 disabled:opacity-30 transition" disabled={idx >= products.length - 1} onClick={() => setIdx(idx + 1)} title="Наступний (.)">
               <ChevronRight className="w-4 h-4" />
             </button>
             {searchOpen && (
-              <div className="absolute bottom-16 card w-[520px] p-2 z-40" onMouseLeave={() => setSearchOpen(false)}>
+              <div className="absolute bottom-14 left-1/2 -translate-x-1/2 island shadow-lift w-[520px] p-2 z-40 animate-pop-in" onMouseLeave={() => setSearchOpen(false)}>
                 <input autoFocus className="ed-input mb-2" placeholder="Пошук товару за назвою або ID" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
                 <div className="max-h-72 overflow-y-auto">
                   {products.map((p, i) => (
-                    <button key={p.id} className={`w-full text-left px-2.5 py-1.5 rounded text-[13px] flex gap-2 ${i === idx ? 'bg-brand-50' : 'hover:bg-ink-50'}`} onClick={() => { setIdx(i); setSearchOpen(false); }}>
+                    <button key={p.id} className={`w-full text-left px-3 py-2 rounded-xl text-[13px] flex gap-2 ${i === idx ? 'bg-brand-50 text-brand-700' : 'hover:bg-ink-50'}`} onClick={() => { setIdx(i); setSearchOpen(false); }}>
                       <span className="font-mono text-xs text-ink-400 w-24 shrink-0 truncate">{p.externalId}</span>
                       <span className="truncate">{p.title}</span>
                     </button>

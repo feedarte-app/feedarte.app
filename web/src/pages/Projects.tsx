@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FolderPlus, Folder, Rss, Palette, Package, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
-import { Empty, Modal, Spinner, useToast } from '../ui';
+import { Empty, Modal, Skeleton, useToast } from '../ui';
 import { useAuth } from '../main';
 
 type P = { id: string; name: string; feedCount: number; designCount: number; productCount: number; errorCount: number; ownerEmail: string; ownerId: string };
@@ -21,7 +21,7 @@ export function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Проєкти</h1>
+          <h1 className="text-[28px] font-semibold tracking-tight">Проєкти</h1>
           <p className="text-sm text-ink-500 mt-1">Проєкт → фіди товарів → дизайни креативів → вихідні фіди для реклами</p>
         </div>
         <button className="btn-primary" onClick={() => setOpen(true)}>
@@ -29,7 +29,11 @@ export function ProjectsPage() {
         </button>
       </div>
       {!items ? (
-        <Spinner className="w-5 h-5 text-ink-400" />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-44 rounded-3xl" />
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <Empty
           icon={<Folder className="w-5 h-5" />}
@@ -40,18 +44,18 @@ export function ProjectsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((p) => (
-            <Link key={p.id} to={`/projects/${p.id}`} className="card p-5 hover:border-ink-300 transition">
+            <Link key={p.id} to={`/projects/${p.id}`} className="island hover-lift p-6 group">
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center font-semibold">{p.name.slice(0, 1).toUpperCase()}</div>
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-b from-brand-300 to-brand-500 text-white flex items-center justify-center font-semibold text-lg shadow-glow transition-transform group-hover:scale-105">{p.name.slice(0, 1).toUpperCase()}</div>
                 {p.errorCount > 0 && (
                   <span className="chip bg-red-50 text-red-700">
                     <AlertTriangle className="w-3 h-3" /> {p.errorCount}
                   </span>
                 )}
               </div>
-              <div className="font-semibold mt-3">{p.name}</div>
+              <div className="font-semibold text-[17px] tracking-tight mt-4">{p.name}</div>
               {user?.role === 'admin' && p.ownerId !== user.id && <div className="text-xs text-ink-400 mt-0.5">{p.ownerEmail}</div>}
-              <div className="flex gap-4 mt-4 text-[13px] text-ink-500">
+              <div className="flex flex-wrap gap-2 mt-4 text-[12px] text-ink-500 [&>span]:bg-ink-100 [&>span]:rounded-full [&>span]:px-2.5 [&>span]:py-1">
                 <span className="flex items-center gap-1"><Rss className="w-3.5 h-3.5" /> {p.feedCount} фідів</span>
                 <span className="flex items-center gap-1"><Palette className="w-3.5 h-3.5" /> {p.designCount} дизайнів</span>
                 <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" /> {p.productCount.toLocaleString('uk-UA')}</span>

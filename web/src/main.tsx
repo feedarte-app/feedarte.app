@@ -22,17 +22,17 @@ function Shell({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const [pw, setPw] = useState(false);
   const link = (to: string, label: string, icon: ReactNode) => (
-    <Link to={to} className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm ${loc.pathname === to || (to !== '/' && loc.pathname.startsWith(to)) ? 'bg-ink-100 text-ink-900 font-medium' : 'text-ink-500 hover:text-ink-900'}`}>
+    <Link to={to} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${loc.pathname === to || (to !== '/' && loc.pathname.startsWith(to)) ? 'bg-brand-50 text-brand-700 font-medium shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
       {icon}
       {label}
     </Link>
   );
   return (
     <div className="min-h-full flex flex-col">
-      <header className="bg-white border-b border-ink-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <img src="/favicon.svg" className="w-7 h-7" alt="" />
+      <header className="sticky top-0 z-40 px-4 pt-4">
+        <div className="island max-w-7xl mx-auto px-4 h-16 flex items-center gap-6 bg-white/85 backdrop-blur-md">
+          <Link to="/" className="flex items-center gap-2.5 font-semibold text-[17px] tracking-tight pl-1">
+            <img src="/favicon.svg" className="w-8 h-8 drop-shadow-[0_4px_10px_rgba(255,107,26,.35)]" alt="" />
             Feedarte
           </Link>
           <nav className="flex gap-1">
@@ -40,7 +40,12 @@ function Shell({ children }: { children: ReactNode }) {
             {user?.role === 'admin' && link('/admin', 'Адмін-панель', <Shield className="w-4 h-4" />)}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-ink-500 hidden sm:block">{user?.email}</span>
+            <span className="hidden sm:flex items-center gap-2 text-sm text-ink-500 pr-1">
+              <span className="w-8 h-8 rounded-full bg-gradient-to-b from-brand-300 to-brand-500 text-white text-xs font-semibold flex items-center justify-center">
+                {(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
+              </span>
+              {user?.email}
+            </span>
             <button className="btn-ghost btn-sm" title="Змінити пароль" onClick={() => setPw(true)}>
               <KeyRound className="w-4 h-4" />
             </button>
@@ -58,7 +63,7 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">{children}</main>
+      <main key={loc.pathname} className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 animate-fade-in">{children}</main>
       <PasswordModal open={pw} onClose={() => setPw(false)} />
     </div>
   );

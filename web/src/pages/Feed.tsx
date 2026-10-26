@@ -58,7 +58,7 @@ export function FeedPage() {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{f.name}</h1>
+            <h1 className="text-[28px] font-semibold tracking-tight">{f.name}</h1>
             <StatusBadge status={f.status} />
             {!f.enabled && <span className="chip bg-ink-100 text-ink-500">Пауза</span>}
           </div>
@@ -91,9 +91,9 @@ export function FeedPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-ink-200 mb-5">
+      <div className="inline-flex gap-1 p-1 rounded-full bg-white border border-ink-200/70 shadow-card mb-6">
         {tabs.map(([t, label, Icon]) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-10 text-sm border-b-2 -mb-px ${tab === t ? 'border-ink-900 text-ink-900 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900'}`}>
+          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -169,10 +169,10 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
   const s = d.renderStats;
   const [showFails, setShowFails] = useState(false);
   return (
-    <div className="card overflow-hidden flex flex-col">
-      <div className="bg-ink-100 h-56 flex items-center justify-center cursor-pointer" onClick={() => nav(`/designs/${d.id}`)}>
+    <div className="island hover-lift overflow-hidden flex flex-col group">
+      <div className="m-2 rounded-[20px] bg-gradient-to-b from-ink-100 to-ink-200/60 h-56 flex items-center justify-center cursor-pointer overflow-hidden" onClick={() => nav(`/designs/${d.id}`)}>
         {d.thumbnail ? (
-          <img src={d.thumbnail} className="max-h-48 max-w-[85%] rounded shadow-sm" alt="" />
+          <img src={d.thumbnail} className="max-h-48 max-w-[85%] rounded-lg shadow-lift transition-transform duration-300 group-hover:scale-[1.04]" alt="" />
         ) : sample ? (
           <div className="opacity-90">
             <DraftThumb designId={d.id} sample={sample} />
@@ -181,7 +181,7 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
           <ImageOff className="w-6 h-6 text-ink-300" />
         )}
       </div>
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="px-5 pb-5 pt-3 flex-1 flex flex-col">
         <div className="flex items-center justify-between gap-2">
           <div className="font-semibold truncate">{d.name}</div>
           <label className="flex items-center gap-1.5 text-xs text-ink-500 shrink-0" title="Оновлювати й віддавати фід">
@@ -251,7 +251,7 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
             <CopyField value={d.outputUrl} />
           </div>
         )}
-        <div className="flex gap-1.5 mt-4 pt-3 border-t border-ink-100">
+        <div className="flex gap-1.5 mt-4 pt-4 border-t border-ink-100">
           <button className="btn-primary btn-sm flex-1" onClick={() => nav(`/designs/${d.id}`)}>
             <Pencil className="w-3.5 h-3.5" /> Редагувати
           </button>
@@ -334,7 +334,7 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
                   setFormatId(f.id);
                   setTpl('');
                 }}
-                className={`rounded-lg border p-3 text-left flex items-center gap-3 ${formatId === f.id ? 'border-ink-900 ring-1 ring-ink-900' : 'border-ink-200 hover:border-ink-300'}`}
+                className={`rounded-2xl border p-3 text-left flex items-center gap-3 transition-all ${formatId === f.id ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}
               >
                 <div className="w-9 h-9 flex items-center justify-center shrink-0">
                   <div className="border-2 border-ink-700 rounded-sm" style={{ width: (f.w / Math.max(f.w, f.h)) * 30, height: (f.h / Math.max(f.w, f.h)) * 30 }} />
@@ -350,14 +350,14 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
         <div>
           <div className="label">Шаблон</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[46vh] overflow-y-auto p-0.5">
-            <button onClick={() => setTpl('')} className={`rounded-lg border p-2 flex flex-col items-center justify-center gap-2 min-h-40 ${tpl === '' ? 'border-ink-900 ring-1 ring-ink-900' : 'border-ink-200 hover:border-ink-300'}`}>
+            <button onClick={() => setTpl('')} className={`rounded-2xl border p-2 flex flex-col items-center transition-all justify-center gap-2 min-h-40 ${tpl === '' ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
               <Plus className="w-6 h-6 text-ink-400" />
               <span className="text-sm">Порожній</span>
             </button>
             {list.map((t) => {
               const w = fmt.h > fmt.w ? Math.round((180 * fmt.w) / fmt.h) : 180;
               return (
-                <button key={t.id} onClick={() => { setTpl(t.id); if (!name) setName(t.name); }} className={`rounded-lg border p-2 flex flex-col items-center gap-2 ${tpl === t.id ? 'border-ink-900 ring-1 ring-ink-900' : 'border-ink-200 hover:border-ink-300'}`}>
+                <button key={t.id} onClick={() => { setTpl(t.id); if (!name) setName(t.name); }} className={`rounded-2xl border p-2 flex flex-col items-center transition-all gap-2 ${tpl === t.id ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
                   <div className="bg-ink-100 rounded-md p-1 w-full flex justify-center">
                     <DesignPreview doc={t.doc} product={sample} width={w} />
                   </div>
@@ -473,7 +473,7 @@ function ProductsTab({ feedId, fields }: { feedId: string; fields: FeedField[] }
   }, [q, filter, page, feedId]);
   const first = (v: any) => (Array.isArray(v) ? v[0] : v);
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       <div className="p-3 flex gap-2 border-b border-ink-200">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-3 text-ink-400" />
@@ -543,7 +543,7 @@ function ProductsTab({ feedId, fields }: { feedId: string; fields: FeedField[] }
 
 function FieldsTab({ fields }: { fields: FeedField[] }) {
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-ink-500 text-xs border-b border-ink-200">
@@ -571,7 +571,7 @@ function FieldsTab({ fields }: { fields: FeedField[] }) {
 function HistoryTab({ runs }: { runs: any[] }) {
   if (!runs.length) return <div className="text-sm text-ink-500">Ще не було оновлень.</div>;
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-ink-500 text-xs border-b border-ink-200">

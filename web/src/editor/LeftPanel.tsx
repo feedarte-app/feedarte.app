@@ -41,13 +41,15 @@ export function LeftRail({ tab, setTab }: { tab: LeftTab; setTab: (t: LeftTab) =
     ['templates', 'Шаблони', LayoutTemplate],
   ];
   return (
-    <div className="w-[76px] border-r border-ink-200 bg-white flex flex-col items-center py-3 gap-1 shrink-0">
+    <div className="w-[84px] flex flex-col items-center py-3 px-2 gap-1.5 shrink-0">
       {items.map(([t, label, Icon]) => (
-        <button key={t} onClick={() => setTab(t)} className="flex flex-col items-center gap-1 py-2 w-full group">
-          <span className={`w-10 h-10 rounded-full flex items-center justify-center transition ${tab === t ? 'bg-brand-500 text-white' : 'text-ink-700 group-hover:bg-ink-100'}`}>
-            <Icon className="w-5 h-5" />
-          </span>
-          <span className={`text-[11px] ${tab === t ? 'text-ink-900 font-medium' : 'text-ink-500'}`}>{label}</span>
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`flex flex-col items-center justify-center gap-1 w-full h-[64px] rounded-2xl border transition-all duration-150 ${tab === t ? 'bg-brand-50 border-brand-200 text-brand-600 shadow-[0_4px_14px_-6px_rgba(255,107,26,.45)]' : 'border-transparent text-ink-700 hover:bg-ink-100'}`}
+        >
+          <Icon className="w-5 h-5" strokeWidth={1.75} />
+          <span className={`text-[11px] ${tab === t ? 'font-semibold' : 'text-ink-500'}`}>{label}</span>
         </button>
       ))}
     </div>
@@ -56,7 +58,7 @@ export function LeftRail({ tab, setTab }: { tab: LeftTab; setTab: (t: LeftTab) =
 
 export function LeftPanel(p: Props) {
   return (
-    <div className="w-[300px] border-r border-ink-200 bg-white overflow-y-auto shrink-0">
+    <div key={p.tab} className="w-[296px] border-l border-ink-100 overflow-y-auto shrink-0 animate-fade-in">
       {p.tab === 'product' && <ProductTab {...p} />}
       {p.tab === 'text' && <TextTab {...p} />}
       {p.tab === 'photo' && <PhotoTab {...p} />}
@@ -70,7 +72,7 @@ export function LeftPanel(p: Props) {
 function Title({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <div className="px-4 pt-4 pb-2">
-      <div className="text-[15px] font-semibold">{children}</div>
+      <div className="text-[17px] font-semibold tracking-tight">{children}</div>
       {hint && <div className="text-xs text-ink-500 mt-1 leading-snug">{hint}</div>}
     </div>
   );
@@ -78,16 +80,16 @@ function Title({ children, hint }: { children: React.ReactNode; hint?: string })
 
 function FieldCard({ label, value, onAdd, image }: { label: string; value: string; onAdd: () => void; image?: string }) {
   return (
-    <button onClick={onAdd} className="text-left rounded-lg border border-ink-200 hover:border-brand-500 hover:bg-brand-50/40 p-2.5 relative min-h-[76px] flex flex-col group" title="Додати на полотно">
+    <button onClick={onAdd} className="text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] p-3 relative min-h-[76px] flex flex-col group transition-all" title="Додати на полотно">
       {image ? (
-        <img src={imgProxy(image)} className="w-full h-20 object-contain rounded bg-ink-50" alt="" loading="lazy" />
+        <img src={imgProxy(image)} className="w-full h-20 object-contain rounded-xl bg-white" alt="" loading="lazy" />
       ) : (
         <>
-          <span className="text-[12px] font-medium text-ink-900 leading-tight">{label}</span>
-          <span className="text-[12px] text-ink-400 mt-1 line-clamp-2 break-all leading-tight">{value || '—'}</span>
+          <span className="text-[13px] font-semibold text-ink-900 leading-tight">{label}</span>
+          <span className="text-[12px] text-ink-500 mt-1 line-clamp-2 break-all leading-tight">{value || '—'}</span>
         </>
       )}
-      <span className="absolute right-1.5 bottom-1.5 w-5 h-5 rounded bg-white border border-ink-200 flex items-center justify-center group-hover:border-brand-500 group-hover:text-brand-600">
+      <span className="absolute right-2 bottom-2 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-ink-500 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 group-hover:text-brand-600 transition-all">
         <Plus className="w-3 h-3" />
       </span>
     </button>
@@ -123,7 +125,7 @@ function ProductTab({ doc, fields, product, addLayer }: Props) {
   const group = (title: string, list: string[]) =>
     list.length > 0 && (
       <div className="px-4 pb-4">
-        <div className="text-[13px] font-semibold mb-2">{title}</div>
+        <div className="eyebrow mb-2">{title}</div>
         <div className="grid grid-cols-2 gap-2">
           {list.map((k) => (
             <FieldCard key={k} label={labelOf(k)} value={ctx.get(k)} onAdd={() => addText(k)} />
@@ -137,7 +139,7 @@ function ProductTab({ doc, fields, product, addLayer }: Props) {
       <Title hint="Клікніть поле, щоб додати його на полотно. Значення підставляються автоматично для кожного товару.">Товар</Title>
       {images.length > 0 && (
         <div className="px-4 pb-4">
-          <div className="text-[13px] font-semibold mb-2">Зображення</div>
+          <div className="eyebrow mb-2">Зображення</div>
           <div className="grid grid-cols-2 gap-2">
             {images.slice(0, 8).map((im) => (
               <FieldCard
@@ -185,7 +187,7 @@ function TextTab({ doc, addLayer }: Props) {
       <Title hint="Текст може містити змінні фіду, напр. {{brand}} або {{discount_percent}}.">Текст</Title>
       <div className="px-4 space-y-2 pb-4">
         {presets.map((p) => (
-          <button key={p.label} onClick={() => addLayer(p.make())} className="w-full text-left rounded-lg border border-ink-200 hover:border-brand-500 px-3 py-2.5">
+          <button key={p.label} onClick={() => addLayer(p.make())} className="w-full text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] px-4 py-3 transition-all">
             <div className="text-[11px] text-ink-400 mb-1">{p.label}</div>
             <div className={p.cls}>{p.preview}</div>
           </button>
@@ -248,7 +250,7 @@ function PhotoTab({ doc, projectId, addLayer }: Props) {
       <div className="px-4 grid grid-cols-2 gap-2 pb-4">
         {assets.map((a) => (
           <div key={a.id} className="relative group">
-            <button onClick={() => add(a)} className="w-full aspect-square rounded-lg border border-ink-200 hover:border-brand-500 p-2 flex items-center justify-center bg-[repeating-conic-gradient(#f3f3f5_0_25%,#fff_0_50%)] bg-[length:14px_14px]">
+            <button onClick={() => add(a)} className="w-full aspect-square rounded-2xl bg-ink-100 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.35)] p-2 transition-all flex items-center justify-center bg-[repeating-conic-gradient(#f3f3f5_0_25%,#fff_0_50%)] bg-[length:14px_14px]">
               <img src={a.url} className="max-w-full max-h-full object-contain" alt={a.name} />
             </button>
             <button
@@ -296,10 +298,10 @@ function ObjectsTab({ doc, addLayer }: Props) {
     <div>
       <Title>Об'єкти</Title>
       <div className="px-4 pb-4">
-        <div className="text-[13px] font-semibold mb-2">Фігури</div>
+        <div className="eyebrow mb-2">Фігури</div>
         <div className="grid grid-cols-3 gap-2">
           {shapes.map(([label, Icon, make]) => (
-            <button key={label} onClick={() => addLayer(make())} className="aspect-square rounded-lg border border-ink-200 hover:border-brand-500 flex flex-col items-center justify-center gap-1">
+            <button key={label} onClick={() => addLayer(make())} className="aspect-square rounded-2xl bg-ink-100 hover:bg-brand-50 hover:text-brand-600 active:scale-95 flex flex-col items-center justify-center gap-1 transition-all">
               <Icon className={`w-7 h-7 ${label === 'Кут' ? '-rotate-90' : ''}`} strokeWidth={1.5} />
               <span className="text-[11px] text-ink-500">{label}</span>
             </button>
@@ -307,7 +309,7 @@ function ObjectsTab({ doc, addLayer }: Props) {
         </div>
       </div>
       <div className="px-4 pb-4">
-        <div className="text-[13px] font-semibold mb-2">Іконки</div>
+        <div className="eyebrow mb-2">Іконки</div>
         <div className="relative mb-2">
           <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-ink-400" />
           <input className="ed-input pl-8" placeholder="Пошук англ.: truck, gift, star…" value={q} onChange={(e) => { setQ(e.target.value); setLimit(48); }} onKeyDown={(e) => e.stopPropagation()} />
@@ -318,7 +320,7 @@ function ObjectsTab({ doc, addLayer }: Props) {
               key={name}
               title={name}
               onClick={() => addLayer(makeIcon({ name: `Іконка ${name}`, icon: name, ...center(doc, Math.round(doc.width * 0.08), Math.round(doc.width * 0.08)) }))}
-              className="aspect-square rounded-lg border border-ink-200 hover:border-brand-500 flex items-center justify-center"
+              className="aspect-square rounded-xl bg-ink-100 hover:bg-brand-50 active:scale-95 flex items-center justify-center transition-all"
             >
               <img src={`/api/icons/${name}.svg?color=%23111111&sw=1.75`} className="w-6 h-6" alt={name} loading="lazy" />
             </button>
@@ -375,7 +377,7 @@ function LayersTab({ doc, selectedId, onSelect, update }: Props) {
                 setOver(null);
               }}
               onClick={() => onSelect(l.id)}
-              className={`group flex items-center gap-2 h-9 px-2 rounded-md cursor-pointer text-[13px] ${selectedId === l.id ? 'bg-brand-50 text-brand-700' : 'hover:bg-ink-50'} ${over === l.id && drag !== l.id ? 'border-t-2 border-brand-500' : ''}`}
+              className={`group flex items-center gap-2 h-10 px-2.5 rounded-xl cursor-pointer text-[13px] transition-colors ${selectedId === l.id ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${over === l.id && drag !== l.id ? 'border-t-2 border-brand-500' : ''}`}
             >
               <GripVertical className="w-3.5 h-3.5 text-ink-300 shrink-0" />
               <Icon className="w-3.5 h-3.5 shrink-0 text-ink-500" />
@@ -444,7 +446,7 @@ function TemplatesTab({ doc, formatId, product, applyTemplate }: Props) {
       <div className="px-4 grid grid-cols-2 gap-2 pb-4">
         {mine.map((t) => (
           <div key={t.id} className="relative group">
-            <button onClick={() => applyTemplate(structuredClone(t.doc))} className="w-full rounded-lg border border-ink-200 hover:border-brand-500 p-1.5 flex flex-col items-center gap-1">
+            <button onClick={() => applyTemplate(structuredClone(t.doc))} className="w-full rounded-2xl bg-ink-100 hover:bg-brand-50 p-2 flex flex-col items-center gap-1.5 transition-all hover:-translate-y-0.5">
               <DesignPreview doc={t.doc} product={product} width={t.doc.height > t.doc.width ? 74 : 120} />
               <span className="text-[11px] text-center leading-tight">{t.name}</span>
             </button>

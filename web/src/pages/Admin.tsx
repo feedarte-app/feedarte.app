@@ -16,10 +16,10 @@ export function AdminPage() {
   ];
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Адмін-панель</h1>
-      <div className="flex gap-1 border-b border-ink-200 mb-5">
+      <h1 className="text-[28px] font-semibold tracking-tight mb-6">Адмін-панель</h1>
+      <div className="inline-flex gap-1 p-1 rounded-full bg-white border border-ink-200/70 shadow-card mb-6">
         {tabs.map(([t, label, Icon]) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-10 text-sm border-b-2 -mb-px ${tab === t ? 'border-ink-900 text-ink-900 font-medium' : 'border-transparent text-ink-500 hover:text-ink-900'}`}>
+          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -52,7 +52,7 @@ function UsersTab() {
   };
   if (!users) return <Spinner />;
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       <div className="p-3 flex justify-between items-center border-b border-ink-200">
         <div className="text-sm text-ink-500">
           {users.length} користувачів
@@ -177,9 +177,9 @@ function SystemTab() {
   if (!s) return <Spinner />;
   const c = s.counts;
   const stat = (label: string, v: any) => (
-    <div className="card p-4">
-      <div className="text-xs text-ink-500">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{typeof v === 'number' ? v.toLocaleString('uk-UA') : v}</div>
+    <div className="island p-5">
+      <div className="eyebrow">{label}</div>
+      <div className="text-[26px] font-semibold tracking-tight mt-1.5">{typeof v === 'number' ? v.toLocaleString('uk-UA') : v}</div>
     </div>
   );
   return (
@@ -222,7 +222,7 @@ function SystemTab() {
           </table>
         </div>
       </div>
-      <div className="card">
+      <div className="card overflow-hidden">
         <div className="p-4 font-semibold">Фіди з помилками</div>
         <table className="w-full text-sm">
           <tbody>
@@ -237,7 +237,7 @@ function SystemTab() {
           </tbody>
         </table>
       </div>
-      <div className="card">
+      <div className="card overflow-hidden">
         <div className="p-4 font-semibold">Невдалі задачі</div>
         <table className="w-full text-sm">
           <tbody>
@@ -268,7 +268,7 @@ function ProjectsTab() {
   }, []);
   if (!rows) return <Spinner />;
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-ink-500 text-xs border-b border-ink-200">
@@ -308,7 +308,7 @@ function SettingsTab() {
       <div className="font-semibold mb-3">Реєстрація нових користувачів</div>
       <div className="space-y-2">
         {opts.map(([v, l, d]) => (
-          <label key={v} className={`flex gap-3 p-3 rounded-lg border cursor-pointer ${mode === v ? 'border-ink-900' : 'border-ink-200'}`}>
+          <label key={v} className={`flex gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${mode === v ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
             <input
               type="radio"
               checked={mode === v}

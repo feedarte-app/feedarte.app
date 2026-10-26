@@ -36,7 +36,7 @@ interface Props {
 export function RightPanel(p: Props) {
   const { layer } = p;
   return (
-    <div className="w-[320px] border-l border-ink-200 bg-white overflow-y-auto shrink-0" onKeyDown={(e) => e.stopPropagation()}>
+    <div className="island w-[320px] overflow-y-auto shrink-0 animate-fade-in" onKeyDown={(e) => e.stopPropagation()}>
       {!layer ? <CanvasProps {...p} /> : <LayerProps {...p} layer={layer} />}
     </div>
   );

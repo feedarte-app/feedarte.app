@@ -39,14 +39,15 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   };
 
   return (
-    <div className="min-h-full flex items-center justify-center p-6 bg-gradient-to-b from-white to-ink-100">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 justify-center mb-6">
-          <img src="/favicon.svg" className="w-9 h-9" alt="" />
-          <span className="text-xl font-semibold">Feedarte</span>
+    <div className="min-h-full flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-[radial-gradient(closest-side,rgba(255,138,61,.28),transparent)]" />
+      <div className="w-full max-w-sm relative animate-pop-in">
+        <div className="flex items-center gap-2.5 justify-center mb-7">
+          <img src="/favicon.svg" className="w-10 h-10 drop-shadow-[0_6px_14px_rgba(255,107,26,.4)]" alt="" />
+          <span className="text-2xl font-semibold tracking-tight">Feedarte</span>
         </div>
-        <div className="card p-6">
-          <h1 className="text-lg font-semibold mb-1">{mode === 'login' ? 'Вхід' : 'Реєстрація'}</h1>
+        <div className="island p-7 shadow-lift">
+          <h1 className="text-xl font-semibold tracking-tight mb-1">{mode === 'login' ? 'Вхід' : 'Реєстрація'}</h1>
           <p className="text-sm text-ink-500 mb-5">Динамічні креативи для каталогів Meta та TikTok</p>
           {info ? (
             <div className="rounded-lg bg-emerald-50 text-emerald-800 text-sm p-3">{info}</div>

@@ -83,7 +83,7 @@ export function ProjectPage() {
       </Link>
       <div className="flex items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{data.project.name}</h1>
+          <h1 className="text-[28px] font-semibold tracking-tight">{data.project.name}</h1>
           <button className="btn-ghost btn-sm px-2" onClick={() => { setNewName(data.project.name); setRename(true); }} title="Перейменувати">
             <Pencil className="w-4 h-4" />
           </button>
@@ -115,8 +115,8 @@ export function ProjectPage() {
       ) : (
         <div className="space-y-3">
           {data.feeds.map((f: any) => (
-            <Link key={f.id} to={`/feeds/${f.id}`} className="card p-5 flex items-center gap-5 hover:border-ink-300 transition">
-              <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+            <Link key={f.id} to={`/feeds/${f.id}`} className="island hover-lift p-5 flex items-center gap-5">
+              <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0 shadow-[inset_0_0_0_1px_rgba(255,107,26,.15)]">
                 <Rss className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -131,9 +131,9 @@ export function ProjectPage() {
               <div className="hidden md:flex -space-x-2">
                 {f.designs.slice(0, 4).map((d: any) =>
                   d.thumbnail ? (
-                    <img key={d.id} src={d.thumbnail} className="w-10 h-10 rounded-md border-2 border-white object-cover bg-ink-100" alt="" />
+                    <img key={d.id} src={d.thumbnail} className="w-11 h-11 rounded-xl border-2 border-white object-cover bg-ink-100 shadow-sm" alt="" />
                   ) : (
-                    <div key={d.id} className="w-10 h-10 rounded-md border-2 border-white bg-ink-100" />
+                    <div key={d.id} className="w-11 h-11 rounded-xl border-2 border-white bg-ink-100" />
                   ),
                 )}
               </div>

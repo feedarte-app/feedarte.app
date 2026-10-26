@@ -4,15 +4,15 @@ import { ChevronDown } from 'lucide-react';
 export function Section({ title, children, right, defaultOpen = true }: { title: string; children: ReactNode; right?: ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-ink-200 px-4 py-3.5">
+    <div className="border-b border-ink-100 last:border-0 px-5 py-4">
       <div className="flex items-center justify-between mb-0">
-        <button className="text-[13px] font-semibold flex items-center gap-1" onClick={() => setOpen(!open)}>
+        <button className="eyebrow !text-ink-500 hover:!text-ink-900 flex items-center gap-1 transition-colors" onClick={() => setOpen(!open)}>
           {title}
-          <ChevronDown className={`w-3.5 h-3.5 text-ink-400 transition ${open ? '' : '-rotate-90'}`} />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
         </button>
         {right}
       </div>
-      {open && <div className="mt-3 space-y-2.5">{children}</div>}
+      {open && <div className="mt-3.5 space-y-2.5 animate-fade-in">{children}</div>}
     </div>
   );
 }
@@ -98,7 +98,7 @@ export function ColorInput({ value, onChange }: { value: string; onChange: (v: s
   return (
     <div className="relative flex items-center gap-1.5">
       <button
-        className="w-9 h-9 rounded-md border border-ink-200 shrink-0"
+        className="w-10 h-10 rounded-xl border border-ink-200 shrink-0 shadow-sm hover:scale-105 transition"
         style={{ background: value === 'transparent' ? 'repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 50%/10px 10px' : value }}
         onClick={() => setOpen(!open)}
       />
@@ -113,12 +113,12 @@ export function ColorInput({ value, onChange }: { value: string; onChange: (v: s
         }}
       />
       {open && (
-        <div className="absolute z-30 top-11 left-0 card p-2.5 w-56" onMouseLeave={() => setOpen(false)}>
+        <div className="absolute z-30 top-12 left-0 island shadow-lift p-3 w-60 animate-pop-in" onMouseLeave={() => setOpen(false)}>
           <div className="grid grid-cols-6 gap-1.5 mb-2">
             {SWATCHES.map((s) => (
               <button
                 key={s}
-                className="w-7 h-7 rounded border border-ink-200"
+                className="w-7 h-7 rounded-lg border border-ink-200 hover:scale-110 transition"
                 style={{ background: s === 'transparent' ? 'repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 50%/8px 8px' : s }}
                 onClick={() => {
                   onChange(s);
