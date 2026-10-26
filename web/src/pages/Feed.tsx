@@ -8,6 +8,7 @@ import { CopyField, Empty, Modal, Spinner, StatusBadge, useToast } from '../ui';
 import { FeedForm, INTERVALS } from './Project';
 import { FORMATS, type DesignDoc, type FeedField, type ProductData } from '../../../src/shared/types';
 import { DesignPreview } from '../editor/Preview';
+import { LayoutTemplate, PenTool, ImageUp } from 'lucide-react';
 import { ConditionEditor } from '../editor/ConditionEditor';
 
 type Tab = 'designs' | 'products' | 'history' | 'fields';
@@ -316,8 +317,21 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
   const [tpl, setTpl] = useState<string>('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [source, setSource] = useState<'template' | 'figma' | 'image'>('template');
+  const [figmaUrl, setFigmaUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [integrations, setIntegrations] = useState<{ figma: boolean; ai: boolean } | null>(null);
+  const pickFile = (f: File) => {
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    if (!name) setName(f.name.replace(/\.[a-z]+$/i, '').slice(0, 80));
+  };
   useEffect(() => {
-    if (open) api.get('/api/templates').then((r) => setTemplates(r.templates));
+    if (open) {
+      api.get('/api/templates').then((r) => setTemplates(r.templates));
+      api.get('/api/integrations').then(setIntegrations);
+    }
   }, [open]);
   const list = useMemo(() => templates.filter((t) => t.formatId === formatId), [templates, formatId]);
   const fmt = FORMATS.find((f) => f.id === formatId)!;
@@ -347,9 +361,14 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
             ))}
           </div>
         </div>
-        <div>
-          <div className="label">Шаблон</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[46vh] overflow-y-auto p-0.5">
+        <div className="seg seg-accent w-full max-w-md">
+          <button data-on={source === 'template'} onClick={() => setSource('template')}><LayoutTemplate className="w-4 h-4 mr-1.5" />Шаблон</button>
+          <button data-on={source === 'figma'} onClick={() => setSource('figma')}><PenTool className="w-4 h-4 mr-1.5" />З Figma</button>
+          <button data-on={source === 'image'} onClick={() => setSource('image')}><ImageUp className="w-4 h-4 mr-1.5" />З картинки</button>
+        </div>
+        {source === 'template' && (
+        <div className="animate-fade-in">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[42vh] overflow-y-auto p-0.5">
             <button onClick={() => setTpl('')} className={`rounded-2xl border p-2 flex flex-col items-center transition-all justify-center gap-2 min-h-40 ${tpl === '' ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
               <Plus className="w-6 h-6 text-ink-400" />
               <span className="text-sm">Порожній</span>
@@ -358,7 +377,7 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
               const w = fmt.h > fmt.w ? Math.round((180 * fmt.w) / fmt.h) : 180;
               return (
                 <button key={t.id} onClick={() => { setTpl(t.id); if (!name) setName(t.name); }} className={`rounded-2xl border p-2 flex flex-col items-center transition-all gap-2 ${tpl === t.id ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
-                  <div className="bg-ink-100 rounded-md p-1 w-full flex justify-center">
+                  <div className="bg-ink-100 rounded-xl p-1 w-full flex justify-center">
                     <DesignPreview doc={t.doc} product={sample} width={w} />
                   </div>
                   <span className="text-[13px] text-center leading-tight">{t.name}</span>
@@ -368,19 +387,74 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
             })}
           </div>
         </div>
+        )}
+        {source === 'figma' && (
+          <div className="animate-fade-in space-y-3">
+            {integrations && !integrations.figma && (
+              <div className="rounded-2xl bg-amber-50 text-amber-800 text-sm px-4 py-3">Figma ще не підключено — адміністратор має додати токен в <b>Адмін-панель → Налаштування</b>.</div>
+            )}
+            <div>
+              <label className="label">Посилання на фрейм у Figma</label>
+              <input className="input font-mono text-xs" placeholder="https://www.figma.com/design/…?node-id=12-34" value={figmaUrl} onChange={(e) => setFigmaUrl(e.target.value)} />
+            </div>
+            <div className="rounded-2xl bg-ink-100 px-4 py-3 text-[13px] text-ink-700 leading-relaxed">
+              <div className="font-medium mb-1">Як отримати посилання</div>
+              У Figma виділіть фрейм креативу → правий клік → <b>Copy/Paste as → Copy link to selection</b>.
+              <div className="font-medium mt-2 mb-1">Порада для точного результату</div>
+              Ціни, знижки й назва розпізнаються автоматично. Щоб явно вказати поле, назвіть шар у Figma змінною: <code className="text-brand-700">{'{{title}}'}</code>, <code className="text-brand-700">{'{{image_link}}'}</code>, <code className="text-brand-700">{'{{brand}}'}</code>.
+            </div>
+          </div>
+        )}
+        {source === 'image' && (
+          <div className="animate-fade-in space-y-3">
+            {integrations && !integrations.ai && (
+              <div className="rounded-2xl bg-amber-50 text-amber-800 text-sm px-4 py-3">Розпізнавання картинок ще не підключено — адміністратор має додати ключ Anthropic API в <b>Адмін-панель → Налаштування</b>.</div>
+            )}
+            <label
+              className={`flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed p-8 cursor-pointer transition-all ${file ? 'border-brand-300 bg-brand-50/50' : 'border-ink-200 hover:border-brand-300 hover:bg-brand-50/30'}`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files?.[0];
+                if (f) pickFile(f);
+              }}
+            >
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => e.target.files?.[0] && pickFile(e.target.files[0])} />
+              {preview ? (
+                <img src={preview} className="max-h-56 rounded-xl shadow-lift" alt="" />
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-2xl bg-white shadow-card flex items-center justify-center text-brand-600"><ImageUp className="w-6 h-6" /></div>
+                  <div className="text-sm font-medium">Перетягніть PNG / JPG макета або натисніть, щоб вибрати</div>
+                  <div className="text-xs text-ink-500">Готовий креатив з одним товаром, до 15 МБ</div>
+                </>
+              )}
+            </label>
+            <p className="text-xs text-ink-500">AI знайде тексти, фото товару, ціни й бейджі знижки, прибере їх з фону й поставить на їхнє місце живі шари. Логотипи й декор залишаться у фоні.</p>
+          </div>
+        )}
         <div className="flex gap-3 items-end">
           <div className="flex-1">
             <label className="label">Назва дизайну</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Напр. Знижки — квадрат A" />
           </div>
           <button
-            className="btn-primary"
-            disabled={busy || !name.trim()}
+            className="btn-primary min-w-[240px]"
+            disabled={busy || !name.trim() || (source === 'figma' && !figmaUrl.trim()) || (source === 'image' && !file)}
             onClick={async () => {
               setBusy(true);
               try {
-                const r = await api.post(`/api/feeds/${feedId}/designs`, { name, formatId, templateId: tpl || undefined });
-                nav(`/designs/${r.design.id}`);
+                let r: any;
+                if (source === 'template') r = await api.post(`/api/feeds/${feedId}/designs`, { name, formatId, templateId: tpl || undefined });
+                else if (source === 'figma') r = await api.post(`/api/feeds/${feedId}/designs/import/figma`, { name, formatId, url: figmaUrl.trim() });
+                else {
+                  const fd = new FormData();
+                  fd.append('name', name);
+                  fd.append('formatId', formatId);
+                  fd.append('file', file!);
+                  r = await api.post(`/api/feeds/${feedId}/designs/import/image`, fd);
+                }
+                nav(`/designs/${r.design.id}`, { state: r.notes ? { importNotes: r.notes, importStats: r.stats } : undefined });
               } catch (err) {
                 toast((err as Error).message, 'error');
               } finally {
@@ -388,7 +462,8 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
               }
             }}
           >
-            Створити й відкрити редактор
+            {busy && <Spinner />}
+            {busy ? (source === 'template' ? 'Створюємо…' : source === 'figma' ? 'Імпортуємо з Figma…' : 'AI розпізнає макет…') : source === 'template' ? 'Створити й відкрити редактор' : 'Імпортувати й відкрити'}
           </button>
         </div>
       </div>

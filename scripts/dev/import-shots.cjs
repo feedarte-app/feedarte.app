@@ -1,0 +1,21 @@
+const { chromium } = require('playwright');
+const [out, feedId, img] = process.argv.slice(2);
+(async () => {
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1500, height: 950 } });
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto('http://localhost:3000/login');
+  await p.fill('input[type=email]', 'admin@ludi.digital'); await p.fill('input[type=password]', 'admin12345');
+  await p.click('button:has-text("Увійти")'); await p.waitForURL('http://localhost:3000/');
+  await p.goto('http://localhost:3000/feeds/' + feedId); await p.waitForTimeout(1200);
+  await p.click('button:has-text("Новий дизайн")'); await p.waitForTimeout(800);
+  await p.click('button:has-text("З Figma")'); await p.waitForTimeout(400);
+  await p.screenshot({ path: out + '/i1-figma.png' });
+  await p.click('button:has-text("З картинки")'); await p.waitForTimeout(300);
+  await p.setInputFiles('input[type=file]', img); await p.waitForTimeout(600);
+  await p.screenshot({ path: out + '/i2-image.png' });
+  await p.keyboard.press('Escape');
+  await p.goto('http://localhost:3000/admin'); await p.waitForTimeout(800);
+  await p.click('button:has-text("Налаштування")'); await p.waitForTimeout(800);
+  await p.screenshot({ path: out + '/i3-admin.png' });
+  console.log(errs); await b.close();
+})();

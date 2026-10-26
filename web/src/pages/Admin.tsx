@@ -291,11 +291,57 @@ function ProjectsTab() {
   );
 }
 
+function SecretField({ label, hint, current, field, placeholder, onSaved }: { label: string; hint: React.ReactNode; current: string; field: string; placeholder: string; onSaved: () => void }) {
+  const [v, setV] = useState('');
+  const toast = useToast();
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="label !mb-0">{label}</label>
+        {current ? <span className="chip bg-emerald-50 text-emerald-700">Підключено · {current}</span> : <span className="chip bg-ink-100 text-ink-500">Не підключено</span>}
+      </div>
+      <div className="flex gap-2">
+        <input className="input font-mono text-xs" type="password" autoComplete="off" placeholder={placeholder} value={v} onChange={(e) => setV(e.target.value)} />
+        <button
+          className="btn-primary"
+          disabled={!v.trim()}
+          onClick={async () => {
+            await api.put('/api/admin/settings', { [field]: v.trim() });
+            setV('');
+            toast('Збережено');
+            onSaved();
+          }}
+        >
+          Зберегти
+        </button>
+        {current && (
+          <button
+            className="btn-outline"
+            onClick={async () => {
+              await api.put('/api/admin/settings', { [field]: '' });
+              onSaved();
+            }}
+          >
+            Вимкнути
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">{hint}</p>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [mode, setMode] = useState<string | null>(null);
+  const [keys, setKeys] = useState<{ figmaToken: string; anthropicKey: string }>({ figmaToken: '', anthropicKey: '' });
   const toast = useToast();
+  const load = () =>
+    api.get('/api/admin/settings').then((r) => {
+      setMode(r.registrationMode);
+      setKeys({ figmaToken: r.figmaToken, anthropicKey: r.anthropicKey });
+    });
   useEffect(() => {
-    api.get('/api/admin/settings').then((r) => setMode(r.registrationMode));
+    load();
   }, []);
   if (!mode) return <Spinner />;
   const opts: [string, string, string][] = [
@@ -304,7 +350,30 @@ function SettingsTab() {
     ['closed', 'Закрита', 'Реєстрація вимкнена, користувачів додає лише адміністратор'],
   ];
   return (
-    <div className="card p-5 max-w-xl">
+    <div className="grid lg:grid-cols-2 gap-4 items-start">
+    <div className="island p-6 space-y-5">
+      <div>
+        <div className="font-semibold text-[17px] tracking-tight">Інтеграції для імпорту дизайнів</div>
+        <p className="text-sm text-ink-500 mt-1">Ключі зберігаються на сервері й не показуються повністю.</p>
+      </div>
+      <SecretField
+        label="Figma — Personal access token"
+        field="figmaToken"
+        current={keys.figmaToken}
+        placeholder="figd_…"
+        onSaved={load}
+        hint={<>Figma → аватар → <b>Settings → Security → Personal access tokens → Generate new token</b>. Права: <i>File content — Read only</i>. Файли мають бути доступні цьому акаунту Figma.</>}
+      />
+      <SecretField
+        label="Anthropic API key — розпізнавання PNG/JPG макетів"
+        field="anthropicKey"
+        current={keys.anthropicKey}
+        placeholder="sk-ant-…"
+        onSaved={load}
+        hint={<>console.anthropic.com → <b>API Keys → Create Key</b>. Один імпорт картинки коштує приблизно $0.01–0.05.</>}
+      />
+    </div>
+    <div className="island p-6">
       <div className="font-semibold mb-3">Реєстрація нових користувачів</div>
       <div className="space-y-2">
         {opts.map(([v, l, d]) => (
@@ -325,6 +394,7 @@ function SettingsTab() {
           </label>
         ))}
       </div>
+    </div>
     </div>
   );
 }

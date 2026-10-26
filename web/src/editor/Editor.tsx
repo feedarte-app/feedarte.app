@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff } from 'lucide-react';
 import type { DesignDoc, Layer, ProductData } from '../../../src/shared/types';
 import { uid } from '../../../src/shared/layers';
 import { api } from '../api';
@@ -33,6 +33,8 @@ export function EditorPage() {
 
 function Editor({ meta }: { meta: any }) {
   const nav = useNavigate();
+  const location = useLocation();
+  const [importInfo, setImportInfo] = useState<{ importNotes: string[]; importStats?: any } | null>((location.state as any)?.importNotes ? (location.state as any) : null);
   const toast = useToast();
   const design = meta.design;
   const feed = meta.feed;
@@ -276,6 +278,28 @@ function Editor({ meta }: { meta: any }) {
         />
         </div>
         <div className="flex-1 flex flex-col min-w-0 rounded-3xl bg-[#E9E9EC] relative overflow-hidden">
+          {importInfo && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-[min(640px,92%)] island shadow-lift p-4 pr-10 animate-pop-in">
+              <button className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-ink-400 hover:bg-ink-100" onClick={() => setImportInfo(null)}>
+                <XIcon className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-2 font-semibold text-[15px]">
+                <span className="w-7 h-7 rounded-xl bg-gradient-to-b from-brand-300 to-brand-500 text-white flex items-center justify-center"><Sparkles className="w-4 h-4" /></span>
+                Макет імпортовано
+                {importInfo.importStats && (
+                  <span className="text-xs font-normal text-ink-500">
+                    · текстів {importInfo.importStats.texts} · фігур {importInfo.importStats.shapes} · зображень {importInfo.importStats.images} · прив’язано до полів {importInfo.importStats.bound}
+                  </span>
+                )}
+              </div>
+              <ul className="mt-2 space-y-1 text-[13px] text-ink-700 list-disc pl-5">
+                {importInfo.importNotes.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+              <div className="mt-2 text-xs text-ink-500">Погортайте товари внизу (зі знижкою / без), щоб перевірити динамічні елементи, і натисніть «Опублікувати».</div>
+            </div>
+          )}
           <div ref={stageWrap} className="flex-1 overflow-auto relative bg-[radial-gradient(#d9d9de_1px,transparent_1px)] [background-size:22px_22px]" onPointerDown={() => setSelectedId(null)}>
             <div className="min-h-full min-w-full flex items-center justify-center px-14 pt-14 pb-24" style={{ width: 'max-content', height: 'max-content' }}>
               <div className="relative">

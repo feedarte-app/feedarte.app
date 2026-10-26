@@ -99,13 +99,24 @@ export async function adminRoutes(app: FastifyInstance) {
     return { projects: rows };
   });
 
+  const mask = (v: string) => (v ? `${v.slice(0, 6)}…${v.slice(-4)}` : '');
   app.get('/api/admin/settings', async () => ({
     registrationMode: await getSetting<RegistrationMode>('registrationMode', 'approval'),
+    figmaToken: mask(await getSetting<string>('figmaToken', '')),
+    anthropicKey: mask(await getSetting<string>('anthropicKey', '')),
   }));
 
   app.put('/api/admin/settings', async (req) => {
-    const b = z.object({ registrationMode: z.enum(['open', 'approval', 'closed']) }).parse(req.body);
-    await setSetting('registrationMode', b.registrationMode);
+    const b = z
+      .object({
+        registrationMode: z.enum(['open', 'approval', 'closed']).optional(),
+        figmaToken: z.string().trim().max(300).optional(),
+        anthropicKey: z.string().trim().max(300).optional(),
+      })
+      .parse(req.body);
+    if (b.registrationMode) await setSetting('registrationMode', b.registrationMode);
+    if (b.figmaToken !== undefined) await setSetting('figmaToken', b.figmaToken);
+    if (b.anthropicKey !== undefined) await setSetting('anthropicKey', b.anthropicKey);
     return { ok: true };
   });
 
