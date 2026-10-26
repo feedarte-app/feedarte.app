@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Runs ON the server (called by GitHub Actions). Idempotent:
-#  first run  → prepares the server (Docker, firewall, swap, auto security updates) and generates secrets
-#  every run  → DB backup → build new image → restart → health check → automatic rollback on failure
-# Data (database, rendered images, uploads) lives in Docker volumes and is never touched by deploys.
+# Deploys one release (called by autodeploy.sh on the server):
+# DB backup → build image → restart → health check → automatic rollback on failure.
+# Data (database, rendered images, uploads) lives in Docker volumes and is never touched.
 set -euo pipefail
 SHA=${1:?release id}
 BASE=/opt/feedarte
@@ -10,38 +9,20 @@ REL=$BASE/releases/$SHA
 P="docker compose -p feedarte --env-file $BASE/.env -f $REL/docker-compose.yml"
 log() { echo "[deploy $(date +%H:%M:%S)] $*"; }
 
-# ---------- one-time server preparation ----------
-if [ ! -f $BASE/.prepared ]; then
-  log "first run: preparing server"
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -y
-  apt-get install -y ca-certificates curl ufw fail2ban unattended-upgrades openssl
-  dpkg-reconfigure -f noninteractive unattended-upgrades || true
-  ufw default deny incoming; ufw default allow outgoing
-  ufw allow OpenSSH; ufw allow 80/tcp; ufw allow 443/tcp; ufw allow 443/udp
-  ufw --force enable
-  if ! swapon --show | grep -q swapfile; then
-    fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
-    echo '/swapfile none swap sw 0 0' >> /etc/fstab
-  fi
-  command -v docker >/dev/null || curl -fsSL https://get.docker.com | sh
-  systemctl enable --now docker
-  mkdir -p $BASE/backups
-  touch $BASE/.prepared
-fi
-
 # ---------- configuration (.env) ----------
-# secrets are generated once on the server and never leave it
-if [ ! -f $BASE/secrets.env ]; then
-  umask 077
-  echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > $BASE/secrets.env
+if [ ! -f $BASE/secrets.env ]; then   # generated once, never leaves the server
+  (umask 077; echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > $BASE/secrets.env)
 fi
 set -a; . $REL/deploy/config.env; set +a
+if [ -z "${DOMAIN:-}" ]; then log "DOMAIN is empty in deploy/config.env"; exit 1; fi
 {
   cat $BASE/secrets.env
   echo "DOMAIN=$DOMAIN"
   echo "PUBLIC_URL=https://$DOMAIN"
+  echo "STATUS_TOKEN=${STATUS_TOKEN:-}"
   echo "BACKUP_DIR=$BASE/backups"
+  echo "STATUS_DIR=$BASE/status"
+  echo "APP_VERSION=$SHA"
   [ -f $BASE/extra.env ] && cat $BASE/extra.env   # optional manual overrides
 } > $BASE/.env
 chmod 600 $BASE/.env
@@ -86,6 +67,8 @@ else
   $P logs --tail 80 app || true
   if docker image inspect feedarte:previous >/dev/null 2>&1; then
     docker tag feedarte:previous feedarte:latest
+    PREV=$(cat $BASE/current 2>/dev/null || echo "")
+    [ -n "$PREV" ] && [ -d $BASE/releases/$PREV ] && P="docker compose -p feedarte --env-file $BASE/.env -f $BASE/releases/$PREV/docker-compose.yml"
     $P up -d --no-build
     health && log "rolled back to previous release" || log "rollback also unhealthy!"
   fi

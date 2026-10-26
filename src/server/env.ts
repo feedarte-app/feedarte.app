@@ -24,6 +24,9 @@ export const env = {
   allowPrivateUrls: bool(process.env.ALLOW_PRIVATE_URLS, false),
   maxFeedBytes: Number(process.env.MAX_FEED_MB ?? 300) * 1024 * 1024,
   secureCookies: bool(process.env.SECURE_COOKIES, process.env.NODE_ENV === 'production'),
+  appVersion: process.env.APP_VERSION ?? 'dev',
+  statusToken: process.env.STATUS_TOKEN ?? '',
+  statusDir: process.env.STATUS_DIR_IN_APP ?? '/app/status',
   adminEmail: process.env.ADMIN_EMAIL ?? '',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
 };

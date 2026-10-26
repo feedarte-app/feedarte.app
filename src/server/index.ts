@@ -4,6 +4,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { ZodError } from 'zod';
 import { env } from './env';
@@ -77,7 +78,23 @@ async function main() {
     }
     const [{ alive }] = await sqlClient`select count(*)::int as alive from settings
       where key like 'worker:%' and (value->>'at')::timestamptz > now() - interval '2 minutes'`;
-    return { ok: true, db: true, workers: alive };
+    return { ok: true, db: true, workers: alive, version: env.appVersion };
+  });
+
+  // Deployment status for maintenance (protected by STATUS_TOKEN from deploy/config.env)
+  app.get('/api/deploy-status', async (req, reply) => {
+    const token = String((req.query as any).token ?? '');
+    if (!env.statusToken || token.length !== env.statusToken.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(env.statusToken)))
+      return reply.status(404).send({ error: 'Не знайдено' });
+    const read = (f: string) => {
+      try {
+        return fs.readFileSync(path.join(env.statusDir, f), 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    const s = read('status.json');
+    return { version: env.appVersion, deploy: s ? JSON.parse(s) : null, log: read('last-deploy.log') };
   });
 
   await app.register(authRoutes);

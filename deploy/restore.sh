@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Restore DB from a backup:  ./deploy/restore.sh backups/db-20261026-0300.dump
+# Restore DB from a backup (run on the server as root):
+#   bash /opt/feedarte/app/deploy/restore.sh /opt/feedarte/backups/predeploy-XXXX.dump
 set -euo pipefail
-cd "$(dirname "$0")/.."
-FILE=${1:?usage: restore.sh backups/db-XXXX.dump}
+FILE=${1:?usage: restore.sh /opt/feedarte/backups/<file>.dump}
+P="docker compose -p feedarte --env-file /opt/feedarte/.env -f /opt/feedarte/app/docker-compose.yml"
 read -rp "This will REPLACE the current database with $FILE. Type YES: " ok
 [ "$ok" = "YES" ] || exit 1
-docker compose stop app worker
-docker compose exec -T db pg_restore -U feedarte -d feedarte --clean --if-exists < "$FILE"
-docker compose start app worker
-echo "Restored. Rendered images will be regenerated on the next feed update (or press Re-render)."
+$P stop app worker
+docker exec -i feedarte-db-1 pg_restore -U feedarte -d feedarte --clean --if-exists < "$FILE"
+$P start app worker
+echo "Restored."
