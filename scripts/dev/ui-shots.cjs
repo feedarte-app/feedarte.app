@@ -1,0 +1,33 @@
+// Dev helper: log in and screenshot main screens.  node scripts/dev/ui-shots.cjs <outDir>
+const { chromium } = require('playwright');
+const out = process.argv[2] || '.';
+const BASE = process.env.BASE || 'http://localhost:3000';
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
+  const errors = [];
+  p.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  p.on('console', (m) => m.type() === 'error' && errors.push('console: ' + m.text()));
+  await p.goto(BASE + '/login');
+  await p.fill('input[type=email]', process.env.EMAIL || 'admin@ludi.digital');
+  await p.fill('input[type=password]', process.env.PASS || 'admin12345');
+  await p.click('button:has-text("Увійти")');
+  await p.waitForURL(BASE + '/');
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: `${out}/1-projects.png` });
+  await p.click('a[href^="/projects/"]');
+  await p.waitForTimeout(1000);
+  await p.screenshot({ path: `${out}/2-project.png` });
+  await p.click('a[href^="/feeds/"]');
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${out}/3-feed.png` });
+  await p.click('button:has-text("Новий дизайн")');
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${out}/4-new-design.png` });
+  await p.keyboard.press('Escape');
+  await p.click('button:has-text("Редагувати")');
+  await p.waitForTimeout(3500);
+  await p.screenshot({ path: `${out}/5-editor.png` });
+  console.log(JSON.stringify(errors.slice(0, 20), null, 1));
+  await b.close();
+})();

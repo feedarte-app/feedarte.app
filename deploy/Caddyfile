@@ -1,0 +1,20 @@
+{$DOMAIN} {
+	encode zstd gzip
+	# rendered images & output feeds are large/static — give them generous timeouts
+	reverse_proxy app:3000 {
+		health_uri /api/health
+		health_interval 30s
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	request_body {
+		max_size 20MB
+	}
+	log {
+		output stdout
+		format console
+		level WARN
+	}
+}
