@@ -167,6 +167,7 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
   const toast = useToast();
   const fmt = FORMATS.find((x) => x.id === d.formatId);
   const s = d.renderStats;
+  const [showFails, setShowFails] = useState(false);
   return (
     <div className="card overflow-hidden flex flex-col">
       <div className="bg-ink-100 h-56 flex items-center justify-center cursor-pointer" onClick={() => nav(`/designs/${d.id}`)}>
@@ -209,11 +210,41 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
           {s && d.renderStatus !== 'rendering' && (
             <span className="text-xs text-ink-500">
               {s.included.toLocaleString('uk-UA')} товарів · {timeAgo(s.at)}
-              {s.failed > 0 && <span className="text-red-600"> · {s.failed} помилок</span>}
+              {s.failed > 0 && (
+                <>
+                  {' · '}
+                  <button className="text-red-600 underline decoration-dotted hover:decoration-solid" onClick={() => setShowFails(true)}>
+                    {s.failed} {s.failed === 1 ? 'помилка' : s.failed < 5 ? 'помилки' : 'помилок'}
+                  </button>
+                </>
+              )}
             </span>
           )}
         </div>
         {d.renderError && <div className="text-xs text-red-600 mt-1">{d.renderError}</div>}
+        <Modal open={showFails} onClose={() => setShowFails(false)} title={`Товари без картинки · ${s?.failed ?? 0}`} width="max-w-2xl">
+          <p className="text-sm text-ink-500 mb-3">
+            Для цих товарів не вдалося створити креатив — у вихідний фід вони потрапили з оригінальним фото, тож реклама не ламається.
+            Сервіс автоматично спробує ще раз при наступному оновленні фіду.
+          </p>
+          {s?.failures?.length ? (
+            <div className="divide-y divide-ink-100 max-h-[60vh] overflow-y-auto">
+              {s.failures.map((f: any, i: number) => (
+                <div key={i} className="py-2.5 text-sm">
+                  <div className="font-medium">{f.title || '—'} <span className="font-mono text-xs text-ink-400">{f.id}</span></div>
+                  <div className="text-red-600 text-xs mt-0.5">{f.reason}</div>
+                  {f.url && (
+                    <a href={f.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 break-all hover:underline">
+                      {f.url}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm">Деталі з’являться після наступного рендеру — натисніть «Перерендерити» (кнопка ↻ на картці).</p>
+          )}
+        </Modal>
         {d.isPublished && (
           <div className="mt-3">
             <div className="text-xs text-ink-500 mb-1">Вихідний фід для Meta / TikTok Catalog:</div>

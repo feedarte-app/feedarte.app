@@ -9,6 +9,7 @@ import { resolveDesign, resolvedFingerprint } from '../../shared/render';
 import type { ProductData } from '../../shared/types';
 import { DEFAULT_OUTPUT } from '../db/schema';
 import { renderPool } from './pool';
+import type { RenderResult } from './engine';
 import * as storage from '../storage';
 import { OutputWriter, type OutputItem } from './output';
 import { log } from '../log';
@@ -39,7 +40,15 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   const [{ count: total }] = await sql<{ count: number }[]>`select count(*)::int as count from products where feed_id = ${design.feedId}`;
 
   const used = new Set<string>();
-  const inFlight = new Map<string, Promise<boolean>>();
+  const inFlight = new Map<string, Promise<RenderResult>>();
+  const failures: { id: string; title: string; reason: string; url?: string }[] = [];
+  const noteFail = (data: ProductData, r: RenderResult) => {
+    failed++;
+    if (failures.length < 100 && !r.ok) {
+      const one = (k: string) => { const v = data[k]; return Array.isArray(v) ? v[0] ?? '' : v ?? ''; };
+      failures.push({ id: one('id'), title: one('title').slice(0, 160), reason: r.reason, url: r.url });
+    }
+  };
   const writer = new OutputWriter(design.publicToken, design.name, out.keepOriginalAsAdditional);
   let included = 0;
   let rendered = 0;
@@ -79,22 +88,26 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
       if (p) {
         // another variant with identical visual output is already being rendered
         reused++;
-        if (!(await p)) pageItems[t.idx].image = null;
+        const shared = await p;
+        if (!shared.ok) {
+          pageItems[t.idx].image = null;
+          noteFail(pageItems[t.idx].data, shared);
+        }
         return;
       }
-      p = renderPool.run({ resolved: t.resolved, ext, quality: out.quality, key: `${prefix}/${t.name}` }).then((ok) => {
-        if (ok) {
+      p = renderPool.run({ resolved: t.resolved, ext, quality: out.quality, key: `${prefix}/${t.name}` }).then((r) => {
+        if (r.ok) {
           existing.add(t.name);
           rendered++;
         }
-        return ok;
+        return r;
       });
       inFlight.set(t.name, p);
-      const ok = await p;
+      const r = await p;
       inFlight.delete(t.name);
-      if (!ok) {
-        failed++;
+      if (!r.ok) {
         pageItems[t.idx].image = null;
+        noteFail(pageItems[t.idx].data, r);
       }
     });
 
@@ -144,7 +157,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     }
   }
 
-  const stats = { total, rendered, reused, failed, included, ms: Date.now() - started, at: new Date().toISOString() };
+  const stats = { total, rendered, reused, failed, failures, included, ms: Date.now() - started, at: new Date().toISOString() };
   await db
     .update(schema.designs)
     .set({ renderStatus: 'ok', renderStats: stats, renderProgress: 100, thumbnail: thumb ?? design.thumbnail })

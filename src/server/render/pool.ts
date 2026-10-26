@@ -5,11 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import type { ResolvedDesign } from '../../shared/render';
-import { renderToStorage } from './engine';
+import { renderToStorage, type RenderResult } from './engine';
 import { log } from '../log';
 
 type Task = { resolved: ResolvedDesign; ext: 'jpg' | 'png'; quality: number; key: string };
-type Pending = { resolve: (ok: boolean) => void; task: Task };
+type Pending = { resolve: (r: RenderResult) => void; task: Task };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,12 +42,12 @@ class Pool {
     }
     const w = new Worker(entry.file, { execArgv: entry.execArgv });
     const slot = { w, busy: null as number | null };
-    w.on('message', (m: { id: number; ok: boolean; error?: string }) => {
+    w.on('message', (m: { id: number; result: RenderResult; error?: string }) => {
       const p = this.pending.get(m.id);
       this.pending.delete(m.id);
       slot.busy = null;
       if (m.error) log.warn({ err: m.error }, 'render thread error');
-      p?.resolve(m.ok);
+      p?.resolve(m.result);
       this.pump();
     });
     let dead = false;
@@ -58,7 +58,7 @@ class Pool {
       if (slot.busy != null) {
         const p = this.pending.get(slot.busy);
         this.pending.delete(slot.busy);
-        p?.resolve(false);
+        p?.resolve({ ok: false, reason: 'Процес рендеру аварійно завершився' });
       }
       this.workers = this.workers.filter((x) => x !== slot);
       this.spawn();
@@ -86,11 +86,11 @@ class Pool {
     }
   }
 
-  run(task: Task): Promise<boolean> {
+  run(task: Task): Promise<RenderResult> {
     this.ensure();
-    if (this.disabled) return renderToStorage(task.resolved, task.ext, task.quality, task.key).catch(() => false);
+    if (this.disabled) return renderToStorage(task.resolved, task.ext, task.quality, task.key).catch((e) => ({ ok: false as const, reason: `Помилка рендеру: ${e instanceof Error ? e.message : e}` }));
     const id = ++this.seq;
-    return new Promise((resolve) => {
+    return new Promise<RenderResult>((resolve) => {
       this.pending.set(id, { resolve, task });
       this.queue.push({ id, task });
       this.pump();

@@ -120,13 +120,15 @@ export async function renderProduct(doc: DesignDoc, data: ProductData, format: '
 }
 
 /** Render and store one creative. Returns false when the product photo could not be loaded. */
-export async function renderToStorage(r: ResolvedDesign, ext: 'jpg' | 'png', quality: number, key: string): Promise<boolean> {
+export type RenderResult = { ok: true } | { ok: false; reason: string; url?: string };
+
+export async function renderToStorage(r: ResolvedDesign, ext: 'jpg' | 'png', quality: number, key: string): Promise<RenderResult> {
   const { buf, missing } = await renderResolved(r, ext, quality);
-  const mainMissing = r.layers.some(
+  const lost = r.layers.find(
     (l) => l.visible && l.layer.type === 'image' && l.layer.source.kind === 'field' && l.url && missing.includes(l.url),
   );
-  if (mainMissing) return false;
+  if (lost) return { ok: false, reason: 'Не вдалося завантажити фото товару (сайт не віддав файл або це не зображення)', url: lost.url };
   const { put } = await import('../storage');
   await put(key, buf);
-  return true;
+  return { ok: true };
 }

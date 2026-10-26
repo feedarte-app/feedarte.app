@@ -141,6 +141,7 @@ export const designs = pgTable(
       rendered: number;
       reused: number;
       failed: number;
+      failures?: { id: string; title: string; reason: string; url?: string }[];
       included: number;
       ms: number;
       at: string;
