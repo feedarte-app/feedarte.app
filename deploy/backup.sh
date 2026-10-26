@@ -6,7 +6,7 @@ KEEP=${BACKUP_KEEP_DAYS:-14}
 while true; do
   TS=$(date +%Y%m%d-%H%M)
   echo "[backup] $TS starting"
-  if pg_dump -h db -U feedcraft -d feedcraft -Fc -f "/backups/db-$TS.dump.tmp"; then
+  if pg_dump -h db -U feedarte -d feedarte -Fc -f "/backups/db-$TS.dump.tmp"; then
     mv "/backups/db-$TS.dump.tmp" "/backups/db-$TS.dump"
     tar -czf "/backups/assets-$TS.tar.gz" -C /appdata/public a 2>/dev/null || true
     find /backups -type f -mtime +"$KEEP" -delete

@@ -12,8 +12,8 @@ export const env = {
   host: process.env.HOST ?? '0.0.0.0',
   // DB_HOST + POSTGRES_PASSWORD (docker) are combined safely — any characters in the password work
   databaseUrl: process.env.DB_HOST
-    ? `postgres://${encodeURIComponent(process.env.DB_USER ?? 'feedcraft')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD ?? '')}@${process.env.DB_HOST}:${process.env.DB_PORT ?? 5432}/${encodeURIComponent(process.env.DB_NAME ?? 'feedcraft')}`
-    : (process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedcraft'),
+    ? `postgres://${encodeURIComponent(process.env.DB_USER ?? 'feedarte')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD ?? '')}@${process.env.DB_HOST}:${process.env.DB_PORT ?? 5432}/${encodeURIComponent(process.env.DB_NAME ?? 'feedarte')}`
+    : (process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedarte'),
   /** Public base URL used in output feeds and image links, no trailing slash */
   publicUrl: (process.env.PUBLIC_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
   dataDir: path.resolve(process.env.DATA_DIR ?? './data'),

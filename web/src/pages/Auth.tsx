@@ -43,7 +43,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
           <img src="/favicon.svg" className="w-9 h-9" alt="" />
-          <span className="text-xl font-semibold">FeedCraft</span>
+          <span className="text-xl font-semibold">Feedarte</span>
         </div>
         <div className="card p-6">
           <h1 className="text-lg font-semibold mb-1">{mode === 'login' ? 'Вхід' : 'Реєстрація'}</h1>

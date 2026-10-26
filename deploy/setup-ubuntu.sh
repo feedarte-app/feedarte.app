@@ -32,6 +32,6 @@ fi
 systemctl enable --now docker
 
 echo "==> Done. Next:"
-echo "   git clone <your repo> /opt/feedcraft && cd /opt/feedcraft"
+echo "   git clone <your repo> /opt/feedarte && cd /opt/feedarte"
 echo "   cp .env.example .env && nano .env"
 echo "   docker compose up -d --build"

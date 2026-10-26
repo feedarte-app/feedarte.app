@@ -33,7 +33,7 @@ function Shell({ children }: { children: ReactNode }) {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <img src="/favicon.svg" className="w-7 h-7" alt="" />
-            FeedCraft
+            Feedarte
           </Link>
           <nav className="flex gap-1">
             {link('/', 'Проєкти', <LayoutGrid className="w-4 h-4" />)}

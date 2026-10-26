@@ -125,7 +125,7 @@ async function main() {
   });
 
   await app.listen({ port: env.port, host: env.host });
-  console.log(`FeedCraft API on :${env.port}`);
+  console.log(`Feedarte API on :${env.port}`);
 
   const shutdown = async () => {
     await app.close();

@@ -49,7 +49,7 @@ jobs:
       - name: Upload release
         if: steps.cfg.outputs.skip != '1'
         run: |
-          REL=/opt/feedcraft/releases/${GITHUB_SHA::12}
+          REL=/opt/feedarte/releases/${GITHUB_SHA::12}
           tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=data -czf /tmp/release.tgz .
           ssh -i ~/.ssh/id_deploy root@${{ steps.cfg.outputs.ip }} "mkdir -p $REL"
           scp -i ~/.ssh/id_deploy /tmp/release.tgz root@${{ steps.cfg.outputs.ip }}:$REL/release.tgz
@@ -58,7 +58,7 @@ jobs:
         if: steps.cfg.outputs.skip != '1'
         run: |
           ssh -i ~/.ssh/id_deploy root@${{ steps.cfg.outputs.ip }} \
-            "bash /opt/feedcraft/releases/${GITHUB_SHA::12}/deploy/remote-deploy.sh ${GITHUB_SHA::12}"
+            "bash /opt/feedarte/releases/${GITHUB_SHA::12}/deploy/remote-deploy.sh ${GITHUB_SHA::12}"
       - name: Public health check
         if: steps.cfg.outputs.skip != '1'
         run: |

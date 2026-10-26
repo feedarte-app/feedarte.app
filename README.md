@@ -1,6 +1,6 @@
-# FeedCraft — динамічні креативи для каталогів Meta та TikTok
+# Feedarte — динамічні креативи для каталогів Meta та TikTok
 
-FeedCraft бере XML-фід товарів, накладає на кожен товар ваш дизайн (ціна, знижка, бренд, бейджі, логотипи) і віддає новий фід з власними картинками. Цей фід підключається до Meta Commerce Manager або TikTok Catalog. Дані оновлюються автоматично за розкладом, за замовчуванням щогодини.
+Feedarte бере XML-фід товарів, накладає на кожен товар ваш дизайн (ціна, знижка, бренд, бейджі, логотипи) і віддає новий фід з власними картинками. Цей фід підключається до Meta Commerce Manager або TikTok Catalog. Дані оновлюються автоматично за розкладом, за замовчуванням щогодини.
 
 ```
 Проєкт → Фід (XML-джерело) → Дизайни (1:1, 4:5, 9:16, 1.91:1 …) → Вихідний фід + картинки
@@ -40,7 +40,7 @@ FeedCraft бере XML-фід товарів, накладає на кожен �
 3. На сервері:
    ```bash
    bash deploy/setup-ubuntu.sh          # Docker, firewall, автооновлення безпеки, swap
-   git clone <repo> /opt/feedcraft && cd /opt/feedcraft
+   git clone <repo> /opt/feedarte && cd /opt/feedarte
    cp .env.example .env && nano .env    # DOMAIN, PUBLIC_URL, паролі
    docker compose up -d --build
    ```
@@ -53,8 +53,8 @@ FeedCraft бере XML-фід товарів, накладає на кожен �
 
 Кожен `push` у гілку `main` автоматично проходить такі кроки:
 1. GitHub перевіряє типи й збирає проєкт. Якщо збірка падає, деплою не буде.
-2. Код завантажується на сервер (`/opt/feedcraft/releases/<commit>`).
-3. Робиться **бекап БД перед оновленням** (`/opt/feedcraft/backups/predeploy-*.dump`, зберігаються останні 10).
+2. Код завантажується на сервер (`/opt/feedarte/releases/<commit>`).
+3. Робиться **бекап БД перед оновленням** (`/opt/feedarte/backups/predeploy-*.dump`, зберігаються останні 10).
 4. Збирається новий Docker-образ, сервіси перезапускаються.
 5. Health-check. Якщо нова версія не піднялась, відбувається **автоматичний відкат** на попередню.
 
@@ -73,7 +73,7 @@ FeedCraft бере XML-фід товарів, накладає на кожен �
 
 ```bash
 npm install
-# Postgres: DATABASE_URL=postgres://feed:feed@localhost:5432/feedcraft
+# Postgres: DATABASE_URL=postgres://feed:feed@localhost:5432/feedarte
 npx tsx scripts/sample-feed.ts 600 --serve       # тестовий фід на :4000
 ALLOW_PRIVATE_URLS=true npm run dev:api           # :3000
 ALLOW_PRIVATE_URLS=true npm run dev:worker

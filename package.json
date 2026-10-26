@@ -1,5 +1,5 @@
 {
-  "name": "feedcraft",
+  "name": "feedarte",
   "version": "1.0.0",
   "scripts": {
     "dev:api": "tsx watch src/server/index.ts",

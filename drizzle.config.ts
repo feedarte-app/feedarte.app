@@ -3,5 +3,5 @@ export default defineConfig({
   schema: './src/server/db/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
-  dbCredentials: { url: process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedcraft' },
+  dbCredentials: { url: process.env.DATABASE_URL ?? 'postgres://feed:feed@localhost:5432/feedarte' },
 });

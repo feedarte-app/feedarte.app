@@ -5,9 +5,9 @@
 # Data (database, rendered images, uploads) lives in Docker volumes and is never touched by deploys.
 set -euo pipefail
 SHA=${1:?release id}
-BASE=/opt/feedcraft
+BASE=/opt/feedarte
 REL=$BASE/releases/$SHA
-P="docker compose -p feedcraft --env-file $BASE/.env -f $REL/docker-compose.yml"
+P="docker compose -p feedarte --env-file $BASE/.env -f $REL/docker-compose.yml"
 log() { echo "[deploy $(date +%H:%M:%S)] $*"; }
 
 # ---------- one-time server preparation ----------
@@ -48,20 +48,20 @@ chmod 600 $BASE/.env
 cp $BASE/.env $REL/.env
 
 # ---------- pre-deploy backup ----------
-if docker ps --format '{{.Names}}' | grep -q '^feedcraft-db-1$'; then
+if docker ps --format '{{.Names}}' | grep -q '^feedarte-db-1$'; then
   log "backup before deploy"
-  docker exec feedcraft-db-1 pg_dump -U feedcraft -d feedcraft -Fc > $BASE/backups/predeploy-$SHA.dump.tmp \
+  docker exec feedarte-db-1 pg_dump -U feedarte -d feedarte -Fc > $BASE/backups/predeploy-$SHA.dump.tmp \
     && mv $BASE/backups/predeploy-$SHA.dump.tmp $BASE/backups/predeploy-$SHA.dump
   ls -1t $BASE/backups/predeploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f   # keep last 10
 fi
 
 # ---------- build ----------
 log "building image $SHA"
-docker build -t feedcraft:$SHA $REL
-if docker image inspect feedcraft:latest >/dev/null 2>&1; then
-  docker tag feedcraft:latest feedcraft:previous
+docker build -t feedarte:$SHA $REL
+if docker image inspect feedarte:latest >/dev/null 2>&1; then
+  docker tag feedarte:latest feedarte:previous
 fi
-docker tag feedcraft:$SHA feedcraft:latest
+docker tag feedarte:$SHA feedarte:latest
 
 # ---------- start ----------
 log "starting"
@@ -84,8 +84,8 @@ if health; then
 else
   log "HEALTH CHECK FAILED — rolling back"
   $P logs --tail 80 app || true
-  if docker image inspect feedcraft:previous >/dev/null 2>&1; then
-    docker tag feedcraft:previous feedcraft:latest
+  if docker image inspect feedarte:previous >/dev/null 2>&1; then
+    docker tag feedarte:previous feedarte:latest
     $P up -d --no-build
     health && log "rolled back to previous release" || log "rollback also unhealthy!"
   fi
@@ -94,6 +94,6 @@ fi
 
 # ---------- cleanup ----------
 ls -1dt $BASE/releases/*/ | tail -n +6 | xargs -r rm -rf
-docker image ls feedcraft --format '{{.Tag}}' | grep -vE '^(latest|previous|'"$SHA"')$' | xargs -r -I{} docker rmi feedcraft:{} >/dev/null 2>&1 || true
+docker image ls feedarte --format '{{.Tag}}' | grep -vE '^(latest|previous|'"$SHA"')$' | xargs -r -I{} docker rmi feedarte:{} >/dev/null 2>&1 || true
 docker image prune -f >/dev/null
 log "done"

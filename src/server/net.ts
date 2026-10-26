@@ -81,7 +81,7 @@ const dispatcher = new Agent({
   bodyTimeout: 120000,
 });
 
-export const UA = 'Mozilla/5.0 (compatible; FeedCraftBot/1.0; +https://feedcraft.app)';
+export const UA = 'Mozilla/5.0 (compatible; FeedarteBot/1.0; +https://feedarte.com)';
 
 export async function safeFetch(
   raw: string,
