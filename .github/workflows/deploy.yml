@@ -1,0 +1,69 @@
+name: Build & deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+      - name: Build
+        run: npm run build
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read deploy config
+        id: cfg
+        run: |
+          set -a; . deploy/config.env; set +a
+          echo "ip=$SERVER_IP" >> "$GITHUB_OUTPUT"
+          echo "domain=$DOMAIN" >> "$GITHUB_OUTPUT"
+          if [ -z "$SERVER_IP" ] || [ -z "$DOMAIN" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; echo "::notice::deploy/config.env is empty — skipping deploy"; fi
+      - name: Setup SSH
+        if: steps.cfg.outputs.skip != '1'
+        env:
+          KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::Secret SSH_PRIVATE_KEY is missing (Settings → Secrets and variables → Actions)"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -T 20 -H "${{ steps.cfg.outputs.ip }}" >> ~/.ssh/known_hosts
+      - name: Upload release
+        if: steps.cfg.outputs.skip != '1'
+        run: |
+          REL=/opt/feedcraft/releases/${GITHUB_SHA::12}
+          tar --exclude=.git --exclude=node_modules --exclude=dist --exclude=data -czf /tmp/release.tgz .
+          ssh -i ~/.ssh/id_deploy root@${{ steps.cfg.outputs.ip }} "mkdir -p $REL"
+          scp -i ~/.ssh/id_deploy /tmp/release.tgz root@${{ steps.cfg.outputs.ip }}:$REL/release.tgz
+          ssh -i ~/.ssh/id_deploy root@${{ steps.cfg.outputs.ip }} "cd $REL && tar -xzf release.tgz && rm release.tgz"
+      - name: Deploy (backup → build → start → health check → auto-rollback)
+        if: steps.cfg.outputs.skip != '1'
+        run: |
+          ssh -i ~/.ssh/id_deploy root@${{ steps.cfg.outputs.ip }} \
+            "bash /opt/feedcraft/releases/${GITHUB_SHA::12}/deploy/remote-deploy.sh ${GITHUB_SHA::12}"
+      - name: Public health check
+        if: steps.cfg.outputs.skip != '1'
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS "https://${{ steps.cfg.outputs.domain }}/api/health"; then echo; exit 0; fi
+            sleep 6
+          done
+          echo "::warning::HTTPS not reachable yet — check that the DNS A-record points to the server (certificate is issued automatically once it does)"
