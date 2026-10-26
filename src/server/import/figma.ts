@@ -6,7 +6,7 @@ import { DEFAULT_FORMAT } from '../../shared/types';
 import { IF_DISCOUNT, makeImage, makeShape, makeText, uid } from '../../shared/layers';
 import { FONTS } from '../../shared/fonts';
 import { safeFetch, readLimited } from '../net';
-import { guessBinding, ImportError, matchFont, saveAsset, toHex } from './common';
+import { guessBinding, ImportError, matchFont, saveAsset, smartPriceBlock, toHex } from './common';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type FNode = any;
@@ -293,6 +293,32 @@ export async function importFromFigma(opts: {
 
   for (const c of root.children ?? []) walk(c, 1);
 
+  // designers often draw the price strike-through as a separate line → turn it into real text decoration
+  // (a separate line does not follow the price length and would stay visible without a discount)
+  const thinOver = (l: Layer, t: TextLayer) => {
+    if (l.h > Math.max(8, t.h * 0.3)) return false;
+    const cy = l.y + l.h / 2;
+    if (cy < t.y || cy > t.y + t.h) return false;
+    const ov = Math.min(l.x + l.w, t.x + t.w) - Math.max(l.x, t.x);
+    return ov > Math.min(l.w, t.w) * 0.5;
+  };
+  let strikes = 0;
+  for (const t of doc.layers.filter((l): l is TextLayer => l.type === 'text')) {
+    const priceLike = /price_fmt/.test(t.text);
+    if (!priceLike) continue;
+    const lines = doc.layers.filter((l) => l !== t && (l.type === 'shape' || l.type === 'image') && thinOver(l, t));
+    if (!lines.length) continue;
+    t.decoration = 'line-through';
+    if (t.text.includes('current_price_fmt')) t.text = '{{old_price_fmt}}';
+    for (const ln of lines) {
+      doc.layers.splice(doc.layers.indexOf(ln), 1);
+      const ri = rasters.findIndex((r) => r.layer === ln);
+      if (ri >= 0) rasters.splice(ri, 1);
+      strikes++;
+    }
+  }
+  if (strikes) notes.push(`Окрему лінію закреслення над ціною замінено на закреслення тексту — тепер вона підлаштовується під довжину ціни й зникає без знижки.`);
+
   // the biggest photo (not the whole background) is most likely the product photo
   const frameArea = W * H;
   const photo = photoCandidates.filter((p) => p.area > frameArea * 0.08 && p.area < frameArea * 0.97).sort((a, b) => b.area - a.area)[0];
@@ -349,6 +375,7 @@ export async function importFromFigma(opts: {
     });
   }
 
+  if (smartPriceBlock(doc)) notes.push('Стару й нову ціну зібрано в «Блок ціни»: зі знижкою — нова ціна кольором і закреслена стара, без знижки — звичайна ціна нейтральним кольором.');
   if (substituted.size) notes.push(`Шрифти замінено на найближчі з бібліотеки: ${[...substituted].join(', ')}.`);
   if (mixed) notes.push(`${mixed} текст(и) мали кілька стилів у межах одного блоку — застосовано основний стиль.`);
   return { doc, notes, stats };

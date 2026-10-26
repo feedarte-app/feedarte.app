@@ -236,6 +236,7 @@ export async function projectRoutes(app: FastifyInstance) {
       design: { ...design, outputUrl: storage.publicUrl(`feeds/${design.publicToken}.xml`) },
       feed: { id: feed.id, name: feed.name, fields: feed.fields, productCount: feed.productCount, status: feed.status },
       project: { id: project.id, name: project.name },
+      logoMaps: project.logoMaps ?? {},
     };
   });
 

@@ -106,3 +106,39 @@ export async function getIntegrationKeys() {
 export class ImportError extends Error {
   statusCode = 400;
 }
+
+/**
+ * Old + new price found in an imported mockup → turn them into a smart price block:
+ * the accent-coloured price shows only with a discount; without a discount the same spot shows
+ * the regular price in a neutral colour. All three are grouped as "Блок ціни".
+ */
+export function smartPriceBlock(doc: import('../../shared/types').DesignDoc): boolean {
+  const texts = doc.layers.filter((l): l is import('../../shared/types').TextLayer => l.type === 'text');
+  const oldP = texts.find((t) => t.text.includes('old_price_fmt'));
+  const cur = texts.find((t) => t.text.includes('current_price_fmt') && !t.condition);
+  if (!oldP || !cur) return false;
+  const neutral = texts.find((t) => /\{\{\s*title/.test(t.text))?.color ?? '#111111';
+  const gid = `g${crypto.randomUUID().slice(0, 8)}`;
+  cur.condition = { action: 'show', mode: 'all', rules: [{ field: 'has_discount', op: 'exists' }] };
+  cur.name = 'Ціна зі знижкою';
+  oldP.name = 'Стара ціна';
+  oldP.decoration = 'line-through';
+  const regular = {
+    ...structuredClone(cur),
+    id: `l${crypto.randomUUID().slice(0, 12)}`,
+    name: 'Ціна (без знижки)',
+    color: isNeutral(cur.color) ? cur.color : neutral,
+    condition: { action: 'show' as const, mode: 'all' as const, rules: [{ field: 'has_discount', op: 'not_exists' as const }] },
+  };
+  doc.layers.splice(doc.layers.indexOf(cur) + 1, 0, regular);
+  for (const l of [oldP, cur, regular]) l.groupId = gid;
+  doc.groups = [...(doc.groups ?? []), { id: gid, name: 'Блок ціни' }];
+  return true;
+}
+
+function isNeutral(hex: string): boolean {
+  const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+  if (!m) return true;
+  const [r, g, b] = m.slice(1).map((x) => parseInt(x, 16));
+  return Math.max(r, g, b) - Math.min(r, g, b) < 30; // greyish / black / white
+}

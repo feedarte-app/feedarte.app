@@ -114,9 +114,9 @@ export async function renderResolved(r: ResolvedDesign, format: 'jpg' | 'png', q
   return { buf, missing };
 }
 
-export async function renderProduct(doc: DesignDoc, data: ProductData, format: 'jpg' | 'png' = 'jpg') {
+export async function renderProduct(doc: DesignDoc, data: ProductData, format: 'jpg' | 'png' = 'jpg', maps?: import('../../shared/types').LogoMaps) {
   const ctx = new ProductContext(data, doc.format);
-  return renderResolved(resolveDesign(doc, ctx), format);
+  return renderResolved(resolveDesign(doc, ctx, maps), format);
 }
 
 /** Render and store one creative. Returns false when the product photo could not be loaded. */

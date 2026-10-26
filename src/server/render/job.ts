@@ -34,6 +34,8 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   const started = Date.now();
   await db.update(schema.designs).set({ renderStatus: 'rendering', renderProgress: 0, renderError: null }).where(eq(schema.designs.id, designId));
 
+  const [proj] = await sql<{ logo_maps: any }[]>`select p.logo_maps from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
+  const logoMaps = proj?.logo_maps ?? {};
   const prefix = `r/${designId}`;
   const existing = new Set((await storage.list(prefix)).map((f) => f.name));
   const docHash = crypto.createHash('sha1').update(JSON.stringify([doc, ext, out.quality])).digest('hex');
@@ -71,7 +73,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
       const ctx = new ProductContext(row.data, doc.format);
       const include = evalCondition(out.filter, ctx);
       if (!include) return { data: row.data, image: null, skip: out.mode === 'only' };
-      const resolved = resolveDesign(doc, ctx);
+      const resolved = resolveDesign(doc, ctx, logoMaps);
       const fp = crypto.createHash('sha1').update(docHash).update(resolvedFingerprint(resolved)).digest('hex').slice(0, 24);
       const name = `${fp}.${ext}`;
       tasks.push({ idx, name, resolved });

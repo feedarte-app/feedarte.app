@@ -17,7 +17,8 @@ const frame = {
     { id: '1:3', name: 'Badge', type: 'ELLIPSE', absoluteBoundingBox: bb(430, 20, 90, 90), fills: [{ type: 'SOLID', color: c('#E53935') }] },
     { id: '1:4', name: 'pct', type: 'TEXT', characters: '-30%', absoluteBoundingBox: bb(440, 50, 70, 30), fills: [{ type: 'SOLID', color: c('#FFFFFF') }], style: { fontFamily: 'Poppins', fontWeight: 700, fontSize: 22, textAlignHorizontal: 'CENTER', textAlignVertical: 'CENTER', lineHeightPx: 26, textAutoResize: 'WIDTH_AND_HEIGHT' } },
     { id: '1:5', name: 'Назва', type: 'TEXT', characters: 'Кепка чоловіча Tommy Hilfiger', absoluteBoundingBox: bb(30, 410, 330, 60), fills: [{ type: 'SOLID', color: c('#1B1B1B') }], style: { fontFamily: 'Manrope', fontWeight: 700, fontSize: 22, textAlignHorizontal: 'LEFT', textAlignVertical: 'TOP', lineHeightPercentFontSize: 120 } },
-    { id: '1:6', name: 'old', type: 'TEXT', characters: '1 470 грн', absoluteBoundingBox: bb(380, 412, 130, 24), fills: [{ type: 'SOLID', color: c('#9A9A9A') }], style: { fontFamily: 'Inter', fontWeight: 400, fontSize: 18, textAlignHorizontal: 'RIGHT', textDecoration: 'STRIKETHROUGH', lineHeightPx: 22 } },
+    { id: '1:6', name: 'old', type: 'TEXT', characters: '1 470 грн', absoluteBoundingBox: bb(380, 412, 130, 24), fills: [{ type: 'SOLID', color: c('#9A9A9A') }], style: { fontFamily: 'Inter', fontWeight: 400, fontSize: 18, textAlignHorizontal: 'RIGHT', lineHeightPx: 22 } },
+    { id: '1:20', name: 'Line 3', type: 'LINE', absoluteBoundingBox: bb(375, 423, 140, 2), strokes: [{ type: 'SOLID', color: c('#999999') }], strokeWeight: 2 },
     { id: '1:7', name: 'price', type: 'TEXT', characters: '1 170 грн', absoluteBoundingBox: bb(360, 440, 150, 40), fills: [{ type: 'SOLID', color: c('#E53935') }], style: { fontFamily: 'Inter', fontWeight: 800, fontSize: 32, textAlignHorizontal: 'RIGHT', lineHeightPx: 38 } },
     { id: '1:8', name: 'Logo', type: 'GROUP', absoluteBoundingBox: bb(30, 490, 120, 30), children: [
       { id: '1:9', name: 'v1', type: 'VECTOR', absoluteBoundingBox: bb(30, 490, 40, 30) }, { id: '1:10', name: 'v2', type: 'VECTOR', absoluteBoundingBox: bb(75, 490, 75, 30) } ] },
@@ -35,7 +36,7 @@ async function main() {
     token: '', projectId: p.id, width: 1080,
     api: async (path) => {
       if (path.includes('/nodes')) return { nodes: { '12:34': { document: frame } } };
-      if (path.startsWith('/v1/images/')) return { images: { '1:8': 'https://x/logo.png' } };
+      if (path.startsWith('/v1/images/')) return { images: { '1:8': 'https://x/logo.png', '1:20': 'https://x/line.png' } };
       throw new Error('unexpected ' + path);
     },
     download: async () => logoPng,

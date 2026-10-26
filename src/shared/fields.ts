@@ -258,3 +258,13 @@ export const OPS: { op: Condition['rules'][number]['op']; label: string; needsVa
   { op: 'lt', label: 'Менше ніж', needsValue: true },
   { op: 'lte', label: 'Менше або дорівнює', needsValue: true },
 ];
+
+/** Normalize a value for logo matching: "Tommy Hilfiger" == "tommy-hilfiger" == "TOMMY HILFIGER®". */
+export function normKey(v: string): string {
+  return v
+    .toLocaleLowerCase('uk-UA')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[®™©]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}

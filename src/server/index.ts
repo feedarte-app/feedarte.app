@@ -15,6 +15,7 @@ import { projectRoutes } from './routes/projects';
 import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
 import { importRoutes } from './routes/import';
+import { logoRoutes } from './routes/logos';
 import { ensureDirs, publicDir } from './storage';
 import { registerFonts } from './render/engine';
 
@@ -106,6 +107,7 @@ async function main() {
   await app.register(mediaRoutes);
   await app.register(adminRoutes);
   await app.register(importRoutes);
+  await app.register(logoRoutes);
 
   // Static files are served by explicit routes (sendFile with a fixed root per route)
   await app.register(fastifyStatic, { root: publicDir, serve: false });

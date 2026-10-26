@@ -70,11 +70,11 @@ export async function mediaRoutes(app: FastifyInstance) {
 
   // Server-side preview of the current draft for one product — proves editor == output
   app.get('/api/designs/:id/preview/:productId', { preHandler: requireUser }, async (req, reply) => {
-    const { design } = await getDesign(req.user!, (req.params as any).id);
+    const { design, project } = await getDesign(req.user!, (req.params as any).id);
     const pid = Number((req.params as any).productId);
     const [row] = await sql`select data from products where id = ${pid} and feed_id = ${design.feedId}`;
     if (!row) throw new HttpError(404, 'Товар не знайдено');
-    const { buf } = await renderProduct(design.draft, row.data, 'jpg');
+    const { buf } = await renderProduct(design.draft, row.data, 'jpg', project.logoMaps);
     reply.header('content-type', 'image/jpeg').header('cache-control', 'no-store');
     return reply.send(buf);
   });

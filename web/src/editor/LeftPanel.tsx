@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Store, Type, Image as ImageIcon, Shapes, Layers, Plus, Eye, EyeOff, Lock, Unlock, Upload, Trash2, Search, GitBranch, Square, Circle, Minus, Triangle, Star, GripVertical, LayoutTemplate,
+  Store, Type, Image as ImageIcon, Shapes, Layers, Plus, ChevronRight, FolderOpen, Sparkles, Eye, EyeOff, Lock, Unlock, Upload, Trash2, Search, GitBranch, Square, Circle, Minus, Triangle, Star, GripVertical, LayoutTemplate,
 } from 'lucide-react';
-import type { DesignDoc, FeedField, Layer, ProductData } from '../../../src/shared/types';
+import type { DesignDoc, FeedField, Layer, LayerGroup, LogoMaps, ProductData } from '../../../src/shared/types';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
-import { makeIcon, makeImage, makeShape, makeText, IF_DISCOUNT } from '../../../src/shared/layers';
+import { makeIcon, makeImage, makeShape, makeText, IF_DISCOUNT, makePriceBlock, makeDiscountBadge } from '../../../src/shared/layers';
+import { LogoLibrary } from './LogoLibrary';
 import { api, imgProxy } from '../api';
 import { useToast } from '../ui';
 import { DesignPreview } from './Preview';
@@ -24,9 +25,13 @@ interface Props {
   product: ProductData | null;
   projectId: string;
   formatId: string;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  sel: string[];
+  setSel: (ids: string[]) => void;
+  pick: (id: string | null, additive: boolean) => string[];
   addLayer: (l: Layer) => void;
+  addGroup: (layers: Layer[], name: string) => void;
+  maps: LogoMaps;
+  onLogosChanged: () => void;
   update: (fn: (d: DesignDoc) => DesignDoc, key?: string) => void;
   applyTemplate: (doc: DesignDoc) => void;
 }
@@ -161,7 +166,7 @@ function ProductTab({ doc, fields, product, addLayer }: Props) {
   );
 }
 
-function TextTab({ doc, addLayer }: Props) {
+function TextTab({ doc, addLayer, addGroup }: Props) {
   const presets: { label: string; make: () => Layer; preview: string; cls: string }[] = [
     { label: 'Заголовок', preview: 'Заголовок', cls: 'text-2xl font-bold', make: () => makeText({ name: 'Заголовок', text: 'Заголовок', ...center(doc, 700, 100), size: 72, weight: 800, align: 'center', autoFit: true, maxLines: 1 }) },
     { label: 'Підзаголовок', preview: 'Підзаголовок', cls: 'text-lg font-semibold', make: () => makeText({ name: 'Підзаголовок', text: 'Підзаголовок', ...center(doc, 600, 70), size: 44, weight: 600, align: 'center' }) },
@@ -185,7 +190,50 @@ function TextTab({ doc, addLayer }: Props) {
   return (
     <div>
       <Title hint="Текст може містити змінні фіду, напр. {{brand}} або {{discount_percent}}.">Текст</Title>
+      <div className="px-4 pb-4">
+        <div className="eyebrow mb-2 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-brand-500" /> Розумні блоки</div>
+        <div className="space-y-2">
+          <SmartBlock
+            title="Ціна: стара над новою"
+            hint="Є знижка → закреслена стара + нова кольором. Немає → одна ціна."
+            onClick={() => {
+              const w = Math.round(doc.width * 0.45);
+              addGroup(makePriceBlock({ x: Math.round((doc.width - w) / 2), y: Math.round(doc.height * 0.7), w }, 'stack'), 'Блок ціни');
+            }}
+            preview={
+              <div className="flex flex-col items-center leading-none">
+                <span className="text-[11px] text-ink-400 line-through">1 470 грн</span>
+                <span className="text-[17px] font-extrabold text-[#E53935]">1 170 грн</span>
+              </div>
+            }
+          />
+          <SmartBlock
+            title="Ціна: в рядок"
+            hint="Стара й нова поруч. Без знижки — одна ціна по центру."
+            onClick={() => {
+              const w = Math.round(doc.width * 0.6);
+              addGroup(makePriceBlock({ x: Math.round((doc.width - w) / 2), y: Math.round(doc.height * 0.75), w }, 'row'), 'Блок ціни');
+            }}
+            preview={
+              <div className="flex items-baseline gap-1.5 leading-none">
+                <span className="text-[11px] text-ink-400 line-through">1 470</span>
+                <span className="text-[16px] font-extrabold text-[#E53935]">1 170 грн</span>
+              </div>
+            }
+          />
+          <SmartBlock
+            title="Бейдж знижки"
+            hint="Коло з «-30%» — лише для товарів зі знижкою."
+            onClick={() => {
+              const s = Math.round(doc.width * 0.17);
+              addGroup(makeDiscountBadge({ x: doc.width - s - Math.round(doc.width * 0.04), y: Math.round(doc.width * 0.04), w: s, h: s }), 'Бейдж знижки');
+            }}
+            preview={<span className="w-9 h-9 rounded-full bg-[#E53935] text-white text-[11px] font-bold flex items-center justify-center">-30%</span>}
+          />
+        </div>
+      </div>
       <div className="px-4 space-y-2 pb-4">
+        <div className="eyebrow mb-2">Текст</div>
         {presets.map((p) => (
           <button key={p.label} onClick={() => addLayer(p.make())} className="w-full text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] px-4 py-3 transition-all">
             <div className="text-[11px] text-ink-400 mb-1">{p.label}</div>
@@ -197,7 +245,10 @@ function TextTab({ doc, addLayer }: Props) {
   );
 }
 
-function PhotoTab({ doc, projectId, addLayer }: Props) {
+function PhotoTab({ doc, projectId, addLayer, maps, onLogosChanged, fields }: Props) {
+  const [libOpen, setLibOpen] = useState(false);
+  const brandField = fields.some((f) => f.key === 'brand') ? 'brand' : fields.find((f) => /brand|vendor|бренд/i.test(f.key))?.key ?? 'brand';
+  const logoCount = Object.keys(maps[brandField] ?? {}).length;
   const [assets, setAssets] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -219,7 +270,41 @@ function PhotoTab({ doc, projectId, addLayer }: Props) {
   return (
     <div>
       <Title hint="Логотипи, бейджі, фони — PNG з прозорістю, SVG, JPG, WEBP. Доступні в усіх дизайнах проєкту.">Фото</Title>
+      <div className="px-4 pb-4">
+        <div className="rounded-2xl bg-gradient-to-b from-brand-50 to-white border border-brand-100 p-3.5">
+          <div className="font-semibold text-[14px] flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-brand-500" /> Динамічні логотипи брендів</div>
+          <p className="text-xs text-ink-500 mt-1 leading-snug">Кожен товар отримує логотип свого бренду з поля <code>{brandField}</code>. Завантажено: <b className="text-ink-700">{logoCount}</b>.</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              className="btn-primary btn-sm flex-1"
+              onClick={() => {
+                const w = Math.round(doc.width * 0.28);
+                const h = Math.round(w * 0.45);
+                addLayer(
+                  makeImage({
+                    name: 'Логотип бренду',
+                    source: { kind: 'map', field: brandField },
+                    fit: 'contain',
+                    x: Math.round(doc.width * 0.05),
+                    y: Math.round(doc.width * 0.05),
+                    w,
+                    h,
+                    fallback: { mode: 'text', font: 'Montserrat', weight: 800, color: '#111111', uppercase: true },
+                  }),
+                );
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" /> На полотно
+            </button>
+            <button className="btn-outline btn-sm flex-1" onClick={() => setLibOpen(true)}>
+              Бібліотека
+            </button>
+          </div>
+        </div>
+        <LogoLibrary open={libOpen} onClose={() => setLibOpen(false)} projectId={projectId} field={brandField} onChanged={onLogosChanged} />
+      </div>
       <div className="px-4 pb-3">
+        <div className="eyebrow mb-2">Мої зображення</div>
         <input
           ref={input}
           type="file"
@@ -338,78 +423,134 @@ function ObjectsTab({ doc, addLayer }: Props) {
 
 const TYPE_ICON: Record<string, any> = { text: Type, image: ImageIcon, shape: Square, icon: Star };
 
-function LayersTab({ doc, selectedId, onSelect, update }: Props) {
+function LayersTab({ doc, sel, setSel, update }: Props) {
   const [drag, setDrag] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const top = [...doc.layers].reverse();
+  const groups = new Map((doc.groups ?? []).map((g) => [g.id, g]));
   const set = (id: string, patch: Partial<Layer>) => update((d) => ({ ...d, layers: d.layers.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)) }));
+  const setG = (gid: string, patch: Partial<LayerGroup>) => update((d) => ({ ...d, groups: (d.groups ?? []).map((g) => (g.id === gid ? { ...g, ...patch } : g)) }));
+
+  // rows: group header at the position of its topmost member, members indented under it
+  const rows: ({ kind: 'layer'; l: Layer; depth: number } | { kind: 'group'; g: LayerGroup; members: Layer[] })[] = [];
+  const done = new Set<string>();
+  for (const l of top) {
+    if (done.has(l.id)) continue;
+    const g = l.groupId ? groups.get(l.groupId) : undefined;
+    if (g) {
+      const members = top.filter((x) => x.groupId === g.id);
+      members.forEach((m) => done.add(m.id));
+      rows.push({ kind: 'group', g, members });
+      if (!collapsed[g.id]) members.forEach((m) => rows.push({ kind: 'layer', l: m, depth: 1 }));
+    } else {
+      done.add(l.id);
+      rows.push({ kind: 'layer', l, depth: 0 });
+    }
+  }
+
+  const onDrop = (targetId: string) => {
+    if (!drag || drag === targetId) return;
+    update((d) => {
+      const layers = [...d.layers];
+      const from = layers.findIndex((x) => x.id === drag);
+      const [m] = layers.splice(from, 1);
+      const to = layers.findIndex((x) => x.id === targetId);
+      const target = layers[to];
+      layers.splice(to + 1, 0, { ...m, groupId: target?.groupId ?? null } as Layer);
+      return { ...d, layers };
+    });
+    setDrag(null);
+    setOver(null);
+  };
+
+  const Row = ({ l, depth }: { l: Layer; depth: number }) => {
+    const Icon = TYPE_ICON[l.type];
+    const isSel = sel.includes(l.id);
+    return (
+      <div
+        draggable
+        onDragStart={() => setDrag(l.id)}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(l.id);
+        }}
+        onDragEnd={() => {
+          setDrag(null);
+          setOver(null);
+        }}
+        onDrop={() => onDrop(l.id)}
+        onClick={(e) => {
+          if (e.shiftKey || e.metaKey || e.ctrlKey) setSel(sel.includes(l.id) ? sel.filter((x) => x !== l.id) : [...sel, l.id]);
+          else setSel([l.id]);
+        }}
+        className={`group flex items-center gap-2 h-10 pr-2.5 rounded-xl cursor-pointer text-[13px] transition-colors ${isSel ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${over === l.id && drag !== l.id ? 'ring-2 ring-brand-300' : ''}`}
+        style={{ paddingLeft: 10 + depth * 18 }}
+      >
+        <GripVertical className="w-3.5 h-3.5 text-ink-300 shrink-0" />
+        <Icon className="w-3.5 h-3.5 shrink-0 text-ink-500" />
+        {renaming === l.id ? (
+          <input
+            autoFocus
+            className="ed-input h-7"
+            defaultValue={l.name}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+            onBlur={(e) => {
+              set(l.id, { name: e.target.value || l.name });
+              setRenaming(null);
+            }}
+          />
+        ) : (
+          <span className={`truncate flex-1 ${l.visible ? '' : 'text-ink-400'}`} onDoubleClick={() => setRenaming(l.id)}>
+            {l.name}
+          </span>
+        )}
+        {l.condition?.rules?.length ? <span title="Має умову відображення"><GitBranch className="w-3.5 h-3.5 text-amber-600 shrink-0" /></span> : null}
+        <button className={`shrink-0 ${l.locked ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); set(l.id, { locked: !l.locked }); }} title="Заблокувати">
+          {l.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+        </button>
+        <button className={`shrink-0 ${!l.visible ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); set(l.id, { visible: !l.visible }); }} title="Показати/сховати">
+          {l.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div>
-      <Title hint="Перетягуйте, щоб змінити порядок. Верхній у списку — поверх усіх.">Шари</Title>
+      <Title hint="Shift+клік — виділити кілька, Ctrl+G — згрупувати. Клік по елементу групи на полотні виділяє всю групу, повторний — окремий елемент.">Шари</Title>
       <div className="px-2 pb-4">
-        {top.map((l) => {
-          const Icon = TYPE_ICON[l.type];
-          return (
+        {rows.map((r) =>
+          r.kind === 'layer' ? (
+            <Row key={r.l.id} l={r.l} depth={r.depth} />
+          ) : (
             <div
-              key={l.id}
-              draggable
-              onDragStart={() => setDrag(l.id)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setOver(l.id);
-              }}
-              onDragEnd={() => {
-                setDrag(null);
-                setOver(null);
-              }}
-              onDrop={() => {
-                if (!drag || drag === l.id) return;
-                update((d) => {
-                  const layers = [...d.layers];
-                  const from = layers.findIndex((x) => x.id === drag);
-                  const [m] = layers.splice(from, 1);
-                  const to = layers.findIndex((x) => x.id === l.id);
-                  layers.splice(to + 1, 0, m);
-                  return { ...d, layers };
-                });
-                setDrag(null);
-                setOver(null);
-              }}
-              onClick={() => onSelect(l.id)}
-              className={`group flex items-center gap-2 h-10 px-2.5 rounded-xl cursor-pointer text-[13px] transition-colors ${selectedId === l.id ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'} ${over === l.id && drag !== l.id ? 'border-t-2 border-brand-500' : ''}`}
+              key={r.g.id}
+              onClick={() => setSel(r.members.map((m) => m.id))}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => drag && update((d) => ({ ...d, layers: d.layers.map((x) => (x.id === drag ? ({ ...x, groupId: r.g.id } as Layer) : x)) }))}
+              className={`group flex items-center gap-2 h-10 px-2.5 rounded-xl cursor-pointer text-[13px] font-medium transition-colors ${r.members.length && r.members.every((m) => sel.includes(m.id)) ? 'bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'hover:bg-ink-50'}`}
             >
-              <GripVertical className="w-3.5 h-3.5 text-ink-300 shrink-0" />
-              <Icon className="w-3.5 h-3.5 shrink-0 text-ink-500" />
-              {renaming === l.id ? (
-                <input
-                  autoFocus
-                  className="ed-input h-7"
-                  defaultValue={l.name}
-                  onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  }}
-                  onBlur={(e) => {
-                    set(l.id, { name: e.target.value || l.name });
-                    setRenaming(null);
-                  }}
-                />
-              ) : (
-                <span className={`truncate flex-1 ${l.visible ? '' : 'text-ink-400'}`} onDoubleClick={() => setRenaming(l.id)}>
-                  {l.name}
-                </span>
-              )}
-              {l.condition?.rules?.length ? <span title="Має умову відображення"><GitBranch className="w-3.5 h-3.5 text-amber-600 shrink-0" /></span> : null}
-              <button className={`shrink-0 ${l.locked ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); set(l.id, { locked: !l.locked }); }} title="Заблокувати">
-                {l.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+              <button className="text-ink-400 shrink-0" onClick={(e) => { e.stopPropagation(); setCollapsed({ ...collapsed, [r.g.id]: !collapsed[r.g.id] }); }}>
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${collapsed[r.g.id] ? '' : 'rotate-90'}`} />
               </button>
-              <button className={`shrink-0 ${!l.visible ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); set(l.id, { visible: !l.visible }); }} title="Показати/сховати">
-                {l.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <FolderOpen className="w-4 h-4 shrink-0 text-brand-500" />
+              {renaming === r.g.id ? (
+                <input autoFocus className="ed-input h-7" defaultValue={r.g.name} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} onBlur={(e) => { setG(r.g.id, { name: e.target.value || r.g.name }); setRenaming(null); }} />
+              ) : (
+                <span className="truncate flex-1" onDoubleClick={() => setRenaming(r.g.id)}>{r.g.name}</span>
+              )}
+              {r.g.condition?.rules?.length ? <GitBranch className="w-3.5 h-3.5 text-amber-600 shrink-0" /> : null}
+              <button className={`shrink-0 ${r.g.visible === false ? 'text-ink-700' : 'text-ink-300 opacity-0 group-hover:opacity-100'}`} onClick={(e) => { e.stopPropagation(); setG(r.g.id, { visible: r.g.visible === false }); }} title="Показати/сховати групу">
+                {r.g.visible === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
-          );
-        })}
+          ),
+        )}
         {!top.length && <div className="text-sm text-ink-500 px-2">Порожньо. Додайте елементи з вкладок зліва.</div>}
       </div>
     </div>
@@ -470,3 +611,15 @@ function TemplatesTab({ doc, formatId, product, applyTemplate }: Props) {
 }
 
 export { renderTemplate };
+
+function SmartBlock({ title, hint, preview, onClick }: { title: string; hint: string; preview: React.ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] p-3 flex items-center gap-3 transition-all">
+      <div className="w-[88px] h-14 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-sm">{preview}</div>
+      <div className="min-w-0">
+        <div className="text-[13px] font-semibold">{title}</div>
+        <div className="text-[11px] text-ink-500 leading-snug mt-0.5">{hint}</div>
+      </div>
+    </button>
+  );
+}

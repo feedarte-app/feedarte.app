@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "logo_maps" jsonb DEFAULT '{}'::jsonb NOT NULL;

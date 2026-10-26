@@ -1,0 +1,21 @@
+const { chromium } = require('playwright');
+const [out, designId] = process.argv.slice(2);
+(async () => {
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto('http://localhost:3000/login');
+  await p.fill('input[type=email]', 'admin@ludi.digital'); await p.fill('input[type=password]', 'admin12345');
+  await p.click('button:has-text("Увійти")'); await p.waitForURL('http://localhost:3000/');
+  await p.goto('http://localhost:3000/designs/' + designId); await p.waitForTimeout(2500);
+  await p.click('button:has(span:text-is("Шари"))'); await p.waitForTimeout(300);
+  await p.click('span:text-is("Логотип бренду")');
+  await p.click('span:text-is("Фото товару")', { modifiers: ['Shift'] }); await p.waitForTimeout(300);
+  const header = await p.textContent('div.island.w-\\[320px\\] >> div >> nth=1');
+  await p.click('button:has-text("Згрупувати")'); await p.waitForTimeout(400);
+  const groups = await p.locator('span:text-matches("^Група")').allTextContents();
+  await p.keyboard.press('Control+z'); await p.waitForTimeout(300);
+  const after = await p.locator('span:text-matches("^Група")').count();
+  await p.screenshot({ path: out + '/g4.png' });
+  console.log(JSON.stringify({ header: header?.slice(0, 40), groups, afterUndo: after, errs }));
+  await b.close();
+})();

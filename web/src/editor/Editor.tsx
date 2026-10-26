@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff } from 'lucide-react';
-import type { DesignDoc, Layer, ProductData } from '../../../src/shared/types';
+import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
+import { cleanup, duplicateSet, groupOf, makeGroup, membersOf, moveSet, patchGroup, selectedGroup, ungroup } from './groups';
 import { uid } from '../../../src/shared/layers';
 import { api } from '../api';
 import { Modal, Spinner, useToast } from '../ui';
@@ -39,7 +40,10 @@ function Editor({ meta }: { meta: any }) {
   const design = meta.design;
   const feed = meta.feed;
   const { doc, docRef, update, reset, undo, redo, breakMerge, canUndo, canRedo } = useDocHistory(design.draft as DesignDoc);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sel, setSel] = useState<string[]>([]);
+  const setSelectedId = useCallback((id: string | null) => setSel(id ? [id] : []), []);
+  const [maps, setMaps] = useState<LogoMaps>(meta.logoMaps ?? {});
+  const reloadMaps = useCallback(() => api.get(`/api/designs/${design.id}`).then((r) => setMaps(r.logoMaps ?? {})), []);
   const [tab, setTab] = useState<LeftTab>('product');
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [ghost, setGhost] = useState(true);
@@ -50,7 +54,6 @@ function Editor({ meta }: { meta: any }) {
   const [serverPreview, setServerPreview] = useState(false);
   const stageWrap = useRef<HTMLDivElement>(null);
   const [wrapSize, setWrapSize] = useState({ w: 800, h: 600 });
-  const clipboard = useRef<Layer | null>(null);
 
   // products for preview navigation
   const [filter, setFilter] = useState<'all' | 'discount' | 'nodiscount'>('all');
@@ -108,46 +111,91 @@ function Editor({ meta }: { meta: any }) {
     return () => window.removeEventListener('beforeunload', h);
   }, [saveState]);
 
-  const selected = doc.layers.find((l) => l.id === selectedId) ?? null;
+  const selectedId = sel.length === 1 ? sel[0] : null;
+  const selected = selectedId ? doc.layers.find((l) => l.id === selectedId) ?? null : null;
+  const selGroup = selectedGroup(doc, sel);
+  const selLayers = doc.layers.filter((l) => sel.includes(l.id));
+
+  /** group-aware selection: first click selects the whole group, a second click picks the single layer */
+  const pick = useCallback(
+    (id: string | null, additive: boolean): string[] => {
+      if (!id) {
+        setSel([]);
+        return [];
+      }
+      const d = docRef.current;
+      const g = groupOf(d, id);
+      let target = g ? membersOf(d, g.id) : [id];
+      if (g && !additive && sel.length === target.length && target.every((t) => sel.includes(t))) target = [id];
+      let next: string[];
+      if (additive) next = target.every((t) => sel.includes(t)) ? sel.filter((x) => !target.includes(x)) : [...new Set([...sel, ...target])];
+      else next = target;
+      setSel(next);
+      return next;
+    },
+    [sel],
+  );
+
   const setLayer = useCallback((patch: Partial<Layer>, key?: string) => {
     if (!selectedId) return;
     update((d) => patchLayer(d, selectedId, patch), key);
   }, [selectedId, update]);
 
+  const patchMany = useCallback((patches: { id: string; patch: Partial<Layer> }[], key?: string) => {
+    update((d) => ({ ...d, layers: d.layers.map((l) => { const p = patches.find((x) => x.id === l.id); return p ? ({ ...l, ...p.patch } as Layer) : l; }) }), key);
+  }, [update]);
+
   const addLayer = useCallback((l: Layer) => {
     update((d) => ({ ...d, layers: [...d.layers, l] }));
-    setSelectedId(l.id);
+    setSel([l.id]);
+  }, [update]);
+
+  /** add several layers as a ready-made group (price block etc.) */
+  const addGroup = useCallback((layers: Layer[], name: string) => {
+    let gid = '';
+    update((d) => {
+      const r = makeGroup({ ...d, layers: [...d.layers, ...layers] }, layers.map((l) => l.id), name);
+      gid = r.gid;
+      return r.doc;
+    });
+    setSel(layers.map((l) => l.id));
+    void gid;
   }, [update]);
 
   const duplicate = useCallback(() => {
-    if (!selected) return;
-    const copy = { ...structuredClone(selected), id: uid(), name: `${selected.name} копія`, x: selected.x + 20, y: selected.y + 20 } as Layer;
+    if (!sel.length) return;
+    let ids: string[] = [];
     update((d) => {
-      const i = d.layers.findIndex((l) => l.id === selected.id);
-      const layers = [...d.layers];
-      layers.splice(i + 1, 0, copy);
-      return { ...d, layers };
+      const r = duplicateSet(d, sel);
+      ids = r.ids;
+      return r.doc;
     });
-    setSelectedId(copy.id);
-  }, [selected, update]);
+    setSel(ids);
+  }, [sel, update]);
 
   const remove = useCallback(() => {
-    if (!selectedId) return;
-    update((d) => ({ ...d, layers: d.layers.filter((l) => l.id !== selectedId) }));
-    setSelectedId(null);
-  }, [selectedId, update]);
+    if (!sel.length) return;
+    update((d) => cleanup({ ...d, layers: d.layers.filter((l) => !sel.includes(l.id)) }));
+    setSel([]);
+  }, [sel, update]);
 
   const order = useCallback((dir: 'up' | 'down' | 'top' | 'bottom') => {
-    if (!selectedId) return;
-    update((d) => {
-      const layers = [...d.layers];
-      const i = layers.findIndex((l) => l.id === selectedId);
-      const [l] = layers.splice(i, 1);
-      const to = dir === 'top' ? layers.length : dir === 'bottom' ? 0 : dir === 'up' ? Math.min(layers.length, i + 1) : Math.max(0, i - 1);
-      layers.splice(to, 0, l);
-      return { ...d, layers };
-    });
-  }, [selectedId, update]);
+    if (!sel.length) return;
+    update((d) => moveSet(d, sel, dir));
+  }, [sel, update]);
+
+  const doGroup = useCallback(() => {
+    if (sel.length < 2) return;
+    update((d) => makeGroup(d, sel).doc);
+  }, [sel, update]);
+
+  const doUngroup = useCallback(() => {
+    const g = selGroup ?? (selectedId ? groupOf(docRef.current, selectedId) : null);
+    if (!g) return;
+    update((d) => ungroup(d, g.id));
+  }, [selGroup, selectedId, update]);
+
+  const clipboardMany = useRef<string[]>([]);
 
   // keyboard
   useEffect(() => {
@@ -155,36 +203,51 @@ function Editor({ meta }: { meta: any }) {
       const t = e.target as HTMLElement;
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'z') {
+      const k = e.key.toLowerCase();
+      if (mod && k === 'z') {
         e.preventDefault();
         e.shiftKey ? redo() : undo();
-      } else if (mod && e.key.toLowerCase() === 'y') {
+      } else if (mod && k === 'y') {
         e.preventDefault();
         redo();
-      } else if (mod && e.key.toLowerCase() === 'd') {
+      } else if (mod && k === 'd') {
         e.preventDefault();
         duplicate();
-      } else if (mod && e.key.toLowerCase() === 'c' && selected) {
-        clipboard.current = structuredClone(selected);
-      } else if (mod && e.key.toLowerCase() === 'v' && clipboard.current) {
+      } else if (mod && k === 'g') {
         e.preventDefault();
-        addLayer({ ...structuredClone(clipboard.current), id: uid(), x: clipboard.current.x + 20, y: clipboard.current.y + 20 } as Layer);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.shiftKey ? doUngroup() : doGroup();
+      } else if (mod && k === 'a') {
+        e.preventDefault();
+        setSel(docRef.current.layers.filter((l) => l.visible && !l.locked).map((l) => l.id));
+      } else if (mod && k === 'c' && sel.length) {
+        clipboardMany.current = [...sel];
+      } else if (mod && k === 'v' && clipboardMany.current.length) {
+        e.preventDefault();
+        const src = clipboardMany.current.filter((id) => docRef.current.layers.some((l) => l.id === id));
+        if (!src.length) return;
+        let ids: string[] = [];
+        update((d) => {
+          const r = duplicateSet(d, src, 30);
+          ids = r.ids;
+          return r.doc;
+        });
+        setSel(ids);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel.length) {
         e.preventDefault();
         remove();
-      } else if (e.key === 'Escape') setSelectedId(null);
-      else if (selected && !selected.locked && e.key.startsWith('Arrow')) {
+      } else if (e.key === 'Escape') setSel([]);
+      else if (selLayers.length && e.key.startsWith('Arrow')) {
         e.preventDefault();
         const s = e.shiftKey ? 10 : 1;
         const dx = e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0;
         const dy = e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0;
-        update((d) => patchLayer(d, selected.id, { x: selected.x + dx, y: selected.y + dy }), `nudge:${selected.id}`);
+        patchMany(selLayers.filter((l) => !l.locked).map((l) => ({ id: l.id, patch: { x: l.x + dx, y: l.y + dy } })), `nudge:${sel.join(',')}`);
       } else if (e.key === '.' || e.key === '/') setIdx((i) => Math.min(products.length - 1, i + 1));
       else if (e.key === ',') setIdx((i) => Math.max(0, i - 1));
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [undo, redo, duplicate, remove, selected, selectedId, update, addLayer, products.length]);
+  }, [undo, redo, duplicate, remove, doGroup, doUngroup, sel, selLayers, update, patchMany, products.length]);
 
   const dirtyVsPublished = useMemo(() => JSON.stringify(doc) !== JSON.stringify(published), [doc, published]);
 
@@ -267,9 +330,13 @@ function Editor({ meta }: { meta: any }) {
           product={product}
           projectId={meta.project.id}
           formatId={design.formatId}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          sel={sel}
+          setSel={setSel}
+          pick={pick}
           addLayer={addLayer}
+          addGroup={addGroup}
+          maps={maps}
+          onLogosChanged={reloadMaps}
           update={update}
           applyTemplate={(d) => {
             update(() => ({ ...d, format: doc.format }));
@@ -309,12 +376,14 @@ function Editor({ meta }: { meta: any }) {
                   product={product}
                   zoom={z}
                   ghost={ghost}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
+                  maps={maps}
+                  selectedIds={sel}
+                  onPick={pick}
                   onChangeLayer={(lid, patch, key) => update((d) => patchLayer(d, lid, patch), key)}
+                  onChangeLayers={patchMany}
                   onGestureEnd={breakMerge}
                   onDoubleClick={(lid) => {
-                    setSelectedId(lid);
+                    setSel([lid]);
                     setFocusText((x) => x + 1);
                   }}
                 />
@@ -365,6 +434,16 @@ function Editor({ meta }: { meta: any }) {
           onDuplicate={duplicate}
           onDelete={remove}
           onOrder={order}
+          selLayers={selLayers}
+          group={selGroup}
+          parentGroup={selectedId ? groupOf(doc, selectedId) : null}
+          onGroup={doGroup}
+          onUngroup={doUngroup}
+          onSelectGroup={(gid) => setSel(membersOf(doc, gid))}
+          setGroup={(gid, patch) => update((d) => patchGroup(d, gid, patch), `group:${gid}`)}
+          moveSelection={(patches) => patchMany(patches)}
+          projectId={meta.project.id}
+          onLogosChanged={reloadMaps}
         />
       </div>
       {serverPreview && products[idx] && (

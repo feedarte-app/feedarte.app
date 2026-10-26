@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { DesignDoc, Layer, ProductData } from '../../../src/shared/types';
+import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
 import { drawDesign, effectiveBox, type ResolvedDesign } from '../../../src/shared/render';
 import { loadFonts, loadImages, resolveFor } from './browserRender';
 
@@ -11,9 +11,12 @@ interface Props {
   product: ProductData | null;
   zoom: number;
   ghost: boolean; // show condition-hidden layers semi-transparent
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  maps: LogoMaps;
+  selectedIds: string[];
+  /** select a layer (group-aware); returns the resulting selection */
+  onPick: (id: string | null, additive: boolean) => string[];
   onChangeLayer: (id: string, patch: Partial<Layer>, mergeKey: string) => void;
+  onChangeLayers: (patches: { id: string; patch: Partial<Layer> }[], mergeKey: string) => void;
   onGestureEnd: () => void;
   onDoubleClick: (id: string) => void;
 }
@@ -21,7 +24,7 @@ interface Props {
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = (typeof HANDLES)[number];
 
-export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChangeLayer, onGestureEnd, onDoubleClick }: Props) {
+export function Stage({ doc, product, zoom, ghost, maps, selectedIds, onPick, onChangeLayer, onChangeLayers, onGestureEnd, onDoubleClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resolved, setResolved] = useState<ResolvedDesign | null>(null);
   const [boxes, setBoxes] = useState<Record<string, Box>>({});
@@ -33,7 +36,7 @@ export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChang
     const my = ++seq.current;
     (async () => {
       await loadFonts();
-      const r = resolveFor(doc, product);
+      const r = resolveFor(doc, product, maps);
       const images = await loadImages(r, ghost);
       if (my !== seq.current) return;
       const c = canvasRef.current;
@@ -54,16 +57,24 @@ export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChang
       setBoxes(b);
       setResolved(r);
     })();
-  }, [doc, product, zoom, ghost]);
+  }, [doc, product, zoom, ghost, maps]);
 
-  const selected = doc.layers.find((l) => l.id === selectedId) ?? null;
+  const selected = selectedIds.length === 1 ? doc.layers.find((l) => l.id === selectedIds[0]) ?? null : null;
+  const multi = selectedIds.length > 1 ? doc.layers.filter((l) => selectedIds.includes(l.id)) : [];
+  const unionOf = (ls: Layer[]): Box | null => {
+    if (!ls.length) return null;
+    const bs = ls.map((l) => boxes[l.id] ?? l);
+    const x = Math.min(...bs.map((b) => b.x));
+    const y = Math.min(...bs.map((b) => b.y));
+    return { x, y, w: Math.max(...bs.map((b) => b.x + b.w)) - x, h: Math.max(...bs.map((b) => b.y + b.h)) - y };
+  };
 
-  function snap(id: string, box: Box): { dx: number; dy: number; guides: Guide[] } {
+  function snap(id: string | string[], box: Box): { dx: number; dy: number; guides: Guide[] } {
     const th = 6 / zoom;
     const xs = [0, doc.width / 2, doc.width];
     const ys = [0, doc.height / 2, doc.height];
     for (const l of doc.layers) {
-      if (l.id === id || !l.visible) continue;
+      if ((Array.isArray(id) ? id.includes(l.id) : l.id === id) || !l.visible) continue;
       const b = boxes[l.id] ?? l;
       xs.push(b.x, b.x + b.w / 2, b.x + b.w);
       ys.push(b.y, b.y + b.h / 2, b.y + b.h);
@@ -84,33 +95,32 @@ export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChang
   function startMove(e: React.PointerEvent, l: Layer) {
     e.stopPropagation();
     if (e.button !== 0) return;
-    onSelect(l.id);
-    if (l.locked) return;
+    const ids = selectedIds.includes(l.id) && !e.shiftKey ? selectedIds : onPick(l.id, e.shiftKey);
+    if (e.shiftKey) return;
+    const movable = doc.layers.filter((x) => ids.includes(x.id) && !x.locked);
+    if (!movable.length) return;
     const sx = e.clientX;
     const sy = e.clientY;
-    const ox = l.x;
-    const oy = l.y;
-    const eff = boxes[l.id] ?? l;
-    const offX = eff.x - l.x;
+    const origins = movable.map((m) => ({ id: m.id, x: m.x, y: m.y }));
+    const u = unionOf(movable)!;
+    const key = `move:${ids.join(',')}`;
     let moved = false;
     const move = (ev: PointerEvent) => {
-      const dx = (ev.clientX - sx) / zoom;
-      const dy = (ev.clientY - sy) / zoom;
+      let dx = (ev.clientX - sx) / zoom;
+      let dy = (ev.clientY - sy) / zoom;
       if (!moved && Math.abs(dx) + Math.abs(dy) < 2 / zoom) return;
       moved = true;
-      let nx = ox + dx;
-      let ny = oy + dy;
+      if (ev.shiftKey) {
+        if (Math.abs(dx) > Math.abs(dy)) dy = 0;
+        else dx = 0;
+      }
       if (!ev.altKey) {
-        const s = snap(l.id, { x: nx + offX, y: ny, w: eff.w, h: eff.h });
-        nx += s.dx;
-        ny += s.dy;
+        const s = snap(ids, { x: u.x + dx, y: u.y + dy, w: u.w, h: u.h });
+        dx += s.dx;
+        dy += s.dy;
         setGuides(s.guides);
       }
-      if (ev.shiftKey) {
-        if (Math.abs(dx) > Math.abs(dy)) ny = oy;
-        else nx = ox;
-      }
-      onChangeLayer(l.id, { x: Math.round(nx), y: Math.round(ny) }, `move:${l.id}`);
+      onChangeLayers(origins.map((o) => ({ id: o.id, patch: { x: Math.round(o.x + dx), y: Math.round(o.y + dy) } })), key);
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
@@ -196,7 +206,7 @@ export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChang
     : [];
 
   return (
-    <div className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onSelect(null)}>
+    <div className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onPick(null, false)}>
       <canvas ref={canvasRef} style={{ width: W, height: H, display: 'block' }} />
       <div className="absolute inset-0">
         {hitLayers.map(({ layer: l }) => {
@@ -218,6 +228,20 @@ export function Stage({ doc, product, zoom, ghost, selectedId, onSelect, onChang
             />
           );
         })}
+        {multi.length > 0 && (() => {
+          const u = unionOf(multi)!;
+          return (
+            <>
+              {multi.map((l) => {
+                const b = boxes[l.id] ?? l;
+                return <div key={l.id} className="absolute border border-brand-400/70 pointer-events-none" style={{ left: b.x * zoom, top: b.y * zoom, width: b.w * zoom, height: b.h * zoom, transform: l.rotation ? `rotate(${l.rotation}deg)` : undefined }} />;
+              })}
+              <div className="absolute border-[1.5px] border-dashed border-brand-500 rounded-sm pointer-events-none" style={{ left: u.x * zoom - 4, top: u.y * zoom - 4, width: u.w * zoom + 8, height: u.h * zoom + 8 }}>
+                <div className="absolute -top-6 left-0 text-[10px] bg-brand-500 text-white rounded-full px-2 py-0.5 whitespace-nowrap">{multi.length} елем.</div>
+              </div>
+            </>
+          );
+        })()}
         {selected && (
           <SelectionBox
             l={selected}

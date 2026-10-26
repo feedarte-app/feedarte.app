@@ -6,7 +6,7 @@ import type { DesignDoc, Layer, TextLayer } from '../../shared/types';
 import { DEFAULT_FORMAT } from '../../shared/types';
 import { IF_DISCOUNT, makeImage, makeShape, makeText } from '../../shared/layers';
 import { FONTS } from '../../shared/fonts';
-import { ImportError, saveAsset } from './common';
+import { ImportError, saveAsset, smartPriceBlock } from './common';
 import type { ImportResult } from './figma';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -341,6 +341,7 @@ export async function importFromImage(opts: {
     stats.texts++;
     if (dynamic) stats.bound++;
   }
+  if (smartPriceBlock(doc)) notes.push('Стару й нову ціну зібрано в «Блок ціни» з готовою логікою знижки.');
   notes.push('Макет розпізнано AI: перевірте положення, шрифти й прив’язку текстів до полів. Логотипи й декор залишено у фоні.');
   return { doc, notes, stats };
 }

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Copy, Trash2, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, Italic, Minus, Info,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Copy, Trash2, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, Italic, Minus, Info, FolderOpen, Ungroup, Group as GroupIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
 } from 'lucide-react';
-import type { DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
+import type { DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
+import { LogoLibrary } from './LogoLibrary';
 import { FONTS } from '../../../src/shared/fonts';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
 import { ColorInput, NumberInput, Row, Section, Seg, Toggle } from './controls';
@@ -31,13 +32,105 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onOrder: (dir: 'up' | 'down' | 'top' | 'bottom') => void;
+  selLayers: Layer[];
+  group: LayerGroup | null;
+  parentGroup: LayerGroup | null;
+  onGroup: () => void;
+  onUngroup: () => void;
+  onSelectGroup: (gid: string) => void;
+  setGroup: (gid: string, patch: Partial<LayerGroup>) => void;
+  moveSelection: (patches: { id: string; patch: Partial<Layer> }[]) => void;
+  projectId: string;
+  onLogosChanged: () => void;
 }
 
 export function RightPanel(p: Props) {
   const { layer } = p;
   return (
-    <div className="island w-[320px] overflow-y-auto shrink-0 animate-fade-in" onKeyDown={(e) => e.stopPropagation()}>
-      {!layer ? <CanvasProps {...p} /> : <LayerProps {...p} layer={layer} />}
+    <div className="island w-[320px] overflow-y-auto shrink-0 animate-fade-in" onKeyDown={(e) => { const t = e.target as HTMLElement; if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT") e.stopPropagation(); }}>
+      {p.selLayers.length > 1 || p.group ? <SelectionProps {...p} /> : !layer ? <CanvasProps {...p} /> : <LayerProps {...p} layer={layer} />}
+    </div>
+  );
+}
+
+function SelectionProps(p: Props) {
+  const ls = p.selLayers;
+  const x = Math.min(...ls.map((l) => l.x));
+  const y = Math.min(...ls.map((l) => l.y));
+  const r = Math.max(...ls.map((l) => l.x + l.w));
+  const b = Math.max(...ls.map((l) => l.y + l.h));
+  const shift = (dx: number, dy: number) => p.moveSelection(ls.map((l) => ({ id: l.id, patch: { x: l.x + dx, y: l.y + dy } })));
+  const align = (k: 'l' | 'c' | 'r' | 't' | 'm' | 'b') =>
+    p.moveSelection(
+      ls.map((l) => ({
+        id: l.id,
+        patch:
+          k === 'l' ? { x } : k === 'r' ? { x: r - l.w } : k === 'c' ? { x: Math.round((x + r) / 2 - l.w / 2) } : k === 't' ? { y } : k === 'b' ? { y: b - l.h } : { y: Math.round((y + b) / 2 - l.h / 2) },
+      })),
+    );
+  const g = p.group;
+  return (
+    <div>
+      <div className="px-4 py-3 border-b border-ink-100 flex items-center gap-2">
+        {g ? (
+          <>
+            <span className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><FolderOpen className="w-4 h-4" /></span>
+            <input className="ed-input font-medium" value={g.name} onChange={(e) => p.setGroup(g.id, { name: e.target.value })} />
+          </>
+        ) : (
+          <div className="font-semibold text-[15px] flex-1">Виділено: {ls.length} елем.</div>
+        )}
+        <button className="btn-ghost btn-sm px-1.5" title="Дублювати (Ctrl+D)" onClick={p.onDuplicate}><Copy className="w-4 h-4" /></button>
+        <button className="btn-ghost btn-sm px-1.5 text-red-600" title="Видалити (Delete)" onClick={p.onDelete}><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="px-4 py-3 border-b border-ink-100">
+        {g ? (
+          <button className="btn-outline w-full" onClick={p.onUngroup}><Ungroup className="w-4 h-4" /> Розгрупувати <span className="text-ink-400 text-xs">Ctrl+Shift+G</span></button>
+        ) : (
+          <button className="btn-primary w-full" onClick={p.onGroup}><GroupIcon className="w-4 h-4" /> Згрупувати <span className="text-white/70 text-xs">Ctrl+G</span></button>
+        )}
+        {g && <p className="text-xs text-ink-500 mt-2">Клік по елементу групи на полотні виділяє всю групу, повторний клік — окремий елемент для редагування.</p>}
+      </div>
+      <Section title="Положення">
+        <Row label="Позиція">
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberInput prefix="X" value={x} onChange={(v) => shift(v - x, 0)} />
+            <NumberInput prefix="Y" value={y} onChange={(v) => shift(0, v - y)} />
+          </div>
+        </Row>
+        <Row label="Розмір">
+          <div className="text-[13px] text-ink-500 px-1">{r - x} × {b - y}</div>
+        </Row>
+        <Row label="На полотні">
+          <div className="grid grid-cols-2 gap-1">
+            <button className="btn-outline btn-sm px-1 text-[11px]" onClick={() => shift(Math.round((p.doc.width - (r - x)) / 2) - x, 0)}>↔ центр</button>
+            <button className="btn-outline btn-sm px-1 text-[11px]" onClick={() => shift(0, Math.round((p.doc.height - (b - y)) / 2) - y)}>↕ центр</button>
+          </div>
+        </Row>
+        {ls.length > 1 && (
+          <Row label="Вирівняти">
+            <div className="grid grid-cols-6 gap-1">
+              {([['l', AlignStartVertical], ['c', AlignCenterVertical], ['r', AlignEndVertical], ['t', AlignStartHorizontal], ['m', AlignCenterHorizontal], ['b', AlignEndHorizontal]] as const).map(([k, Icon]) => (
+                <button key={k} className="h-8 rounded-lg bg-ink-100 hover:bg-brand-50 hover:text-brand-600 flex items-center justify-center transition" onClick={() => align(k)}>
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
+            </div>
+          </Row>
+        )}
+      </Section>
+      <div className="px-4 py-2 border-b border-ink-100 flex gap-1">
+        <button className="btn-ghost btn-sm px-2 flex-1" title="На передній план" onClick={() => p.onOrder('top')}><ChevronsUp className="w-4 h-4" /></button>
+        <button className="btn-ghost btn-sm px-2 flex-1" title="Вище" onClick={() => p.onOrder('up')}><ChevronUp className="w-4 h-4" /></button>
+        <button className="btn-ghost btn-sm px-2 flex-1" title="Нижче" onClick={() => p.onOrder('down')}><ChevronDown className="w-4 h-4" /></button>
+        <button className="btn-ghost btn-sm px-2 flex-1" title="На задній план" onClick={() => p.onOrder('bottom')}><ChevronsDown className="w-4 h-4" /></button>
+      </div>
+      {g && (
+        <Section title="Умова відображення групи" defaultOpen={!!g.condition?.rules?.length}>
+          <p className="text-xs text-ink-500 -mt-1">Діє на всю групу разом, напр. показувати блок лише для товарів зі знижкою.</p>
+          <ConditionEditor value={g.condition} onChange={(c) => p.setGroup(g.id, { condition: c })} fields={p.fields} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -69,7 +162,7 @@ function FieldInsert({ fields, onPick }: { fields: FeedField[]; onPick: (key: st
   );
 }
 
-function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplicate, onDelete, onOrder }: Props & { layer: Layer }) {
+function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplicate, onDelete, onOrder, parentGroup, onSelectGroup, projectId, onLogosChanged }: Props & { layer: Layer }) {
   const key = (k: string) => `${k}:${layer.id}`;
   return (
     <div>
@@ -85,7 +178,13 @@ function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplic
         <button className="btn-ghost btn-sm px-2 flex-1" title="На задній план" onClick={() => onOrder('bottom')}><ChevronsDown className="w-4 h-4" /></button>
       </div>
       {layer.type === 'text' && <TextContent layer={layer} fields={fields} product={product} doc={doc} focusText={focusText} setLayer={setLayer} />}
-      {layer.type === 'image' && <ImageSourceProps layer={layer} fields={fields} setLayer={setLayer} />}
+      {parentGroup && (
+        <div className="mx-4 mt-3 rounded-xl bg-brand-50 text-[12px] text-brand-700 px-3 py-2 flex items-center gap-2">
+          <FolderOpen className="w-3.5 h-3.5" /> У групі «{parentGroup.name}»
+          <button className="ml-auto underline" onClick={() => onSelectGroup(parentGroup.id)}>вибрати групу</button>
+        </div>
+      )}
+      {layer.type === 'image' && <ImageSourceProps layer={layer} fields={fields} setLayer={setLayer} projectId={projectId} onLogosChanged={onLogosChanged} />}
 
       <Section title="Загальне">
         <Row label="Позиція">
@@ -287,32 +386,96 @@ function TextStyle({ layer, setLayer }: { layer: TextLayer; setLayer: Props['set
 
 const IMAGE_FIELD_HINT = ['image_link', 'additional_image_link'];
 
-function ImageSourceProps({ layer, fields, setLayer }: { layer: ImageLayer; fields: FeedField[]; setLayer: Props['setLayer'] }) {
+function ImageSourceProps({ layer, fields, setLayer, projectId, onLogosChanged }: { layer: ImageLayer; fields: FeedField[]; setLayer: Props['setLayer']; projectId: string; onLogosChanged: () => void }) {
   const src = layer.source;
+  const [lib, setLib] = useState(false);
   const imgFields = fields.filter((f) => IMAGE_FIELD_HINT.includes(f.key) || /image|picture|photo|logo/i.test(f.key) || /^https?:\/\/.*\.(jpe?g|png|webp|gif|svg)/i.test(f.sample));
+  const textFields = fields.filter((f) => !/^https?:/.test(f.sample));
+  const fb = layer.fallback ?? { mode: 'hide' as const };
+  const setFb = (patch: Partial<NonNullable<ImageLayer['fallback']>>) => setLayer({ fallback: { ...fb, ...patch } as ImageLayer['fallback'] });
   return (
-    <Section title="Джерело зображення">
-      <Seg
-        value={src.kind}
-        onChange={(v) => setLayer({ source: v === 'field' ? { kind: 'field', field: 'image_link' } : { kind: 'url', url: '' } })}
-        options={[
-          { v: 'field', label: 'Поле фіду' },
-          { v: 'url', label: 'Файл / URL' },
-        ]}
-      />
-      {src.kind === 'field' ? (
-        <div className="grid grid-cols-[1fr_70px] gap-1.5">
-          <select className="ed-input" value={src.field} onChange={(e) => setLayer({ source: { ...src, field: e.target.value } })}>
-            {(imgFields.length ? imgFields : fields).map((f) => (
-              <option key={f.key} value={f.key}>{f.key}</option>
-            ))}
-          </select>
-          <NumberInput prefix="#" value={(src.index ?? 0) + 1} min={1} max={20} onChange={(v) => setLayer({ source: { ...src, index: v - 1 } })} />
-        </div>
-      ) : (
-        <input className="ed-input font-mono text-xs" placeholder="https://… або завантажте у вкладці Фото" value={src.url} onChange={(e) => setLayer({ source: { kind: 'url', url: e.target.value } })} />
+    <>
+      <Section title="Джерело зображення">
+        <Seg
+          value={src.kind}
+          onChange={(v) =>
+            setLayer(
+              v === 'field'
+                ? { source: { kind: 'field', field: 'image_link' } }
+                : v === 'map'
+                  ? { source: { kind: 'map', field: textFields.find((f) => f.key === 'brand')?.key ?? 'brand' }, fit: 'contain', fallback: layer.fallback ?? { mode: 'text', font: 'Montserrat', weight: 800, color: '#111111', uppercase: true } }
+                  : { source: { kind: 'url', url: '' } },
+            )
+          }
+          options={[
+            { v: 'field', label: 'Фото з фіду' },
+            { v: 'map', label: 'Логотип', title: 'Динамічний логотип за полем (бренд)' },
+            { v: 'url', label: 'Файл' },
+          ]}
+        />
+        {src.kind === 'field' && (
+          <div className="grid grid-cols-[1fr_70px] gap-1.5">
+            <select className="ed-input" value={src.field} onChange={(e) => setLayer({ source: { ...src, field: e.target.value } })}>
+              {(imgFields.length ? imgFields : fields).map((f) => (
+                <option key={f.key} value={f.key}>{f.key}</option>
+              ))}
+            </select>
+            <NumberInput prefix="#" value={(src.index ?? 0) + 1} min={1} max={20} onChange={(v) => setLayer({ source: { ...src, index: v - 1 } })} />
+          </div>
+        )}
+        {src.kind === 'map' && (
+          <>
+            <Row label="За полем">
+              <select className="ed-input" value={src.field} onChange={(e) => setLayer({ source: { kind: 'map', field: e.target.value } })}>
+                {textFields.map((f) => (
+                  <option key={f.key} value={f.key}>{f.key}</option>
+                ))}
+              </select>
+            </Row>
+            <button className="btn-outline btn-sm w-full" onClick={() => setLib(true)}>Бібліотека логотипів</button>
+            <LogoLibrary open={lib} onClose={() => setLib(false)} projectId={projectId} field={src.field} onChanged={onLogosChanged} />
+          </>
+        )}
+        {src.kind === 'url' && (
+          <input className="ed-input font-mono text-xs" placeholder="https://… або завантажте у вкладці Фото" value={src.url} onChange={(e) => setLayer({ source: { kind: 'url', url: e.target.value } })} />
+        )}
+      </Section>
+      {src.kind !== 'url' && (
+        <Section title="Якщо зображення немає">
+          <Seg
+            value={fb.mode}
+            onChange={(v) => setFb({ mode: v })}
+            options={[
+              { v: 'text', label: 'Текст', title: 'Показати значення поля текстом (напр. назву бренду)' },
+              { v: 'image', label: 'Запасне фото' },
+              { v: 'hide', label: 'Сховати' },
+            ]}
+          />
+          {fb.mode === 'text' && (
+            <>
+              <p className="text-xs text-ink-500">Замість логотипа буде назва з поля <code>{src.field}</code>, вписана в рамку шару.</p>
+              <select className="ed-input" value={fb.font ?? 'Montserrat'} onChange={(e) => setFb({ font: e.target.value })}>
+                {FONTS.map((f) => (
+                  <option key={f.family} value={f.family}>{f.family}</option>
+                ))}
+              </select>
+              <div className="grid grid-cols-[1fr_96px] gap-1.5">
+                <ColorInput value={fb.color ?? '#111111'} onChange={(v) => setFb({ color: v })} />
+                <select className="ed-input" value={fb.weight ?? 800} onChange={(e) => setFb({ weight: Number(e.target.value) })}>
+                  {[400, 500, 600, 700, 800, 900].map((w) => (
+                    <option key={w} value={w}>{w}</option>
+                  ))}
+                </select>
+              </div>
+              <Toggle label="ВЕЛИКИМИ ЛІТЕРАМИ" checked={!!fb.uppercase} onChange={(v) => setFb({ uppercase: v })} />
+            </>
+          )}
+          {fb.mode === 'image' && (
+            <input className="ed-input font-mono text-xs" placeholder="/a/… (скопіюйте з вкладки Фото) або https://…" value={fb.url ?? ''} onChange={(e) => setFb({ url: e.target.value })} />
+          )}
+        </Section>
       )}
-    </Section>
+    </>
   );
 }
 

@@ -11,7 +11,7 @@ import {
   index,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { DesignDoc, FeedField, ProductData, Condition } from '../../shared/types';
+import type { DesignDoc, FeedField, ProductData, Condition, LogoMaps } from '../../shared/types';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -50,6 +50,7 @@ export const projects = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    logoMaps: jsonb('logo_maps').$type<LogoMaps>().notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('projects_owner_idx').on(t.ownerId)],

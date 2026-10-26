@@ -1,7 +1,7 @@
 import { FONTS } from '../../../src/shared/fonts';
 import { drawDesign, resolveDesign, collectUrls, parseIconUrl, type ResolvedDesign, type DrawOptions } from '../../../src/shared/render';
 import { ProductContext } from '../../../src/shared/fields';
-import type { DesignDoc, ProductData } from '../../../src/shared/types';
+import type { DesignDoc, LogoMaps, ProductData } from '../../../src/shared/types';
 import { imgProxy } from '../api';
 
 let fontsPromise: Promise<void> | null = null;
@@ -56,14 +56,14 @@ export async function loadImages(r: ResolvedDesign, includeHidden = false): Prom
   return m;
 }
 
-export function resolveFor(doc: DesignDoc, product: ProductData | null): ResolvedDesign {
-  return resolveDesign(doc, new ProductContext(product ?? {}, doc.format));
+export function resolveFor(doc: DesignDoc, product: ProductData | null, maps?: LogoMaps): ResolvedDesign {
+  return resolveDesign(doc, new ProductContext(product ?? {}, doc.format), maps);
 }
 
 /** Render a design into a canvas element at a given CSS width (keeps aspect ratio). */
-export async function renderPreview(canvas: HTMLCanvasElement, doc: DesignDoc, product: ProductData | null, cssWidth: number, opts: DrawOptions = {}) {
+export async function renderPreview(canvas: HTMLCanvasElement, doc: DesignDoc, product: ProductData | null, cssWidth: number, opts: DrawOptions = {}, maps?: LogoMaps) {
   await loadFonts();
-  const r = resolveFor(doc, product);
+  const r = resolveFor(doc, product, maps);
   const images = await loadImages(r, !!opts.ghostHidden);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const scale = (cssWidth / doc.width) * dpr;

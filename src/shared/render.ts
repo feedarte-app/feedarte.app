@@ -1,7 +1,7 @@
 // Canvas renderer shared by browser (HTMLCanvasElement) and server (@napi-rs/canvas).
-import type { DesignDoc, Fill, ImageLayer, ImageSource, Layer, ShapeLayer, TextLayer, IconLayer } from './types';
+import type { DesignDoc, Fill, ImageLayer, ImageSource, Layer, LogoMaps, ShapeLayer, TextLayer, IconLayer } from './types';
 import { DEFAULT_FORMAT } from './types';
-import { ProductContext, evalCondition, renderTemplate, templateFields } from './fields';
+import { ProductContext, evalCondition, normKey, renderTemplate, templateFields } from './fields';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type G = any; // CanvasRenderingContext2D-compatible
@@ -40,16 +40,23 @@ export function iconSvg(raw: string, color: string, sw: number, size = 256): str
     .replace(/height="24"/, `height="${size}"`);
 }
 
-function resolveImage(src: ImageSource | null | undefined, ctx: ProductContext): string | undefined {
+function resolveImage(src: ImageSource | null | undefined, ctx: ProductContext, maps?: LogoMaps): string | undefined {
   if (!src) return undefined;
   if (src.kind === 'url') return src.url || undefined;
+  if (src.kind === 'map') {
+    const v = ctx.get(src.field);
+    return v ? maps?.[src.field]?.[normKey(v)] || undefined : undefined;
+  }
   const list = ctx.images(src.field);
   return list[src.index ?? 0] || undefined;
 }
 
-export function resolveDesign(doc: DesignDoc, ctx: ProductContext): ResolvedDesign {
+export function resolveDesign(doc: DesignDoc, ctx: ProductContext, maps?: LogoMaps): ResolvedDesign {
+  const groups = new Map<string, { visible: boolean; condOk: boolean }>();
+  for (const g of doc.groups ?? []) groups.set(g.id, { visible: g.visible !== false, condOk: evalCondition(g.condition, ctx) });
   const layers: ResolvedLayer[] = doc.layers.map((layer) => {
-    let condOk = evalCondition(layer.condition, ctx);
+    const grp = layer.groupId ? groups.get(layer.groupId) : undefined;
+    let condOk = evalCondition(layer.condition, ctx) && (grp ? grp.condOk : true);
     const r: ResolvedLayer = { layer, visible: false, condHidden: false };
     if (layer.type === 'text') {
       r.text = applyTransform(renderTemplate(layer.text, ctx), layer.transform);
@@ -59,16 +66,23 @@ export function resolveDesign(doc: DesignDoc, ctx: ProductContext): ResolvedDesi
       }
       if (!r.text.trim()) condOk = false;
     } else if (layer.type === 'image') {
-      r.url = resolveImage(layer.source, ctx);
-      if (!r.url) condOk = false;
+      r.url = resolveImage(layer.source, ctx, maps);
+      if (!r.url && layer.fallback && layer.fallback.mode !== 'hide') {
+        if (layer.fallback.mode === 'image') r.url = layer.fallback.url || undefined;
+        else if (layer.source.kind !== 'url') {
+          const v = ctx.get(layer.source.field).trim();
+          if (v) r.text = layer.fallback.uppercase ? v.toLocaleUpperCase('uk-UA') : v;
+        }
+      }
+      if (!r.url && !r.text) condOk = false;
     } else if (layer.type === 'icon') {
       r.url = iconUrl(layer);
     }
     r.condHidden = !condOk;
-    r.visible = layer.visible && condOk;
+    r.visible = layer.visible && (grp ? grp.visible : true) && condOk;
     return r;
   });
-  return { doc, bgUrl: resolveImage(doc.background.image, ctx), layers };
+  return { doc, bgUrl: resolveImage(doc.background.image, ctx, maps), layers };
 }
 
 /** Stable fingerprint of everything that affects the output pixels for a product. */
@@ -297,6 +311,32 @@ function drawText(g: G, l: TextLayer, text: string) {
   });
 }
 
+/** Brand name drawn in place of a missing logo. */
+function fallbackTextLayer(l: ImageLayer): TextLayer {
+  const fb = l.fallback ?? { mode: 'text' };
+  return {
+    ...l,
+    type: 'text',
+    text: '',
+    font: fb.font ?? 'Montserrat',
+    size: Math.max(8, Math.round(l.h * 0.55)),
+    weight: fb.weight ?? 800,
+    italic: false,
+    color: fb.color ?? '#111111',
+    align: l.hAlign === 'left' ? 'left' : l.hAlign === 'right' ? 'right' : 'center',
+    vAlign: l.vAlign,
+    lineHeight: 105,
+    letterSpacing: 0,
+    decoration: 'none',
+    transform: 'none',
+    maxLines: 2,
+    autoFit: true,
+    autoWidth: false,
+    hideIfEmpty: false,
+    bg: null,
+  } as TextLayer;
+}
+
 function drawImageFit(g: G, img: Img, l: Pick<ImageLayer, 'x' | 'y' | 'w' | 'h' | 'fit' | 'hAlign' | 'vAlign'>) {
   const iw = img.width || img.naturalWidth;
   const ih = img.height || img.naturalHeight;
@@ -460,7 +500,8 @@ export function drawDesign(g: G, r: ResolvedDesign, images: Map<string, Img>, op
         if (rl.text) drawText(g, l, rl.text);
         break;
       case 'image':
-        drawImageLayer(g, l, rl.url ? images.get(rl.url) : undefined);
+        if (rl.url) drawImageLayer(g, l, images.get(rl.url));
+        else if (rl.text) drawText(g, fallbackTextLayer(l), rl.text);
         break;
       case 'shape':
         drawShape(g, l);

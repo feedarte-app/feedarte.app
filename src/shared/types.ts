@@ -58,6 +58,15 @@ export interface LayerBase {
   locked: boolean;
   condition?: Condition | null;
   shadow?: Shadow | null;
+  groupId?: string | null;
+}
+
+export interface LayerGroup {
+  id: string;
+  name: string;
+  condition?: Condition | null;
+  locked?: boolean;
+  visible?: boolean;
 }
 
 export interface TextLayer extends LayerBase {
@@ -83,7 +92,21 @@ export interface TextLayer extends LayerBase {
 
 export type ImageSource =
   | { kind: 'field'; field: string; index?: number }
-  | { kind: 'url'; url: string };
+  | { kind: 'url'; url: string }
+  /** dynamic logo: picks an image from the project's logo library by the value of a feed field (e.g. brand) */
+  | { kind: 'map'; field: string };
+
+/** project logo libraries: field → normalized value → image url */
+export type LogoMaps = Record<string, Record<string, string>>;
+
+export interface ImageFallback {
+  mode: 'text' | 'image' | 'hide';
+  url?: string; // for mode=image
+  font?: string;
+  weight?: number;
+  color?: string;
+  uppercase?: boolean;
+}
 
 export interface ImageLayer extends LayerBase {
   type: 'image';
@@ -93,6 +116,8 @@ export interface ImageLayer extends LayerBase {
   vAlign: 'top' | 'middle' | 'bottom';
   radius: number;
   stroke?: { color: string; width: number } | null;
+  /** what to show when the image (e.g. a brand logo) is missing */
+  fallback?: ImageFallback | null;
 }
 
 export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'triangle' | 'burst';
@@ -131,6 +156,7 @@ export interface DesignDoc {
   height: number;
   background: Fill & { image?: ImageSource | null; imageFit?: 'contain' | 'cover' };
   layers: Layer[]; // index 0 = bottom
+  groups?: LayerGroup[];
   format: FormatSettings;
 }
 
