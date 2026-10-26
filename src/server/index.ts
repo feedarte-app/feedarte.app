@@ -81,6 +81,9 @@ async function main() {
     return { ok: true, db: true, workers: alive, version: env.appVersion };
   });
 
+  // Catalog crawlers (Meta, TikTok) and monitoring must be able to fetch feeds/images
+  app.get('/robots.txt', async (_req, reply) => reply.type('text/plain').send('User-agent: *\nAllow: /\n'));
+
   // Deployment status for maintenance (protected by STATUS_TOKEN from deploy/config.env)
   app.get('/api/deploy-status', async (req, reply) => {
     const token = String((req.query as any).token ?? '');
