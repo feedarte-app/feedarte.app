@@ -64,8 +64,10 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN}
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./landing:/srv/landing:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on: [app]

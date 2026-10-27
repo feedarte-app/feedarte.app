@@ -19,6 +19,7 @@ if [ -z "${DOMAIN:-}" ]; then log "DOMAIN is empty in deploy/config.env"; exit 1
   cat $BASE/secrets.env
   echo "DOMAIN=$DOMAIN"
   echo "PUBLIC_URL=https://$DOMAIN"
+  echo "SITE_DOMAIN=${SITE_DOMAIN:-localhost}"
   echo "STATUS_TOKEN=${STATUS_TOKEN:-}"
   echo "BACKUP_DIR=$BASE/backups"
   echo "STATUS_DIR=$BASE/status"
@@ -34,6 +35,16 @@ if docker ps --format '{{.Names}}' | grep -q '^feedarte-db-1$'; then
   docker exec feedarte-db-1 pg_dump -U feedarte -d feedarte -Fc > $BASE/backups/predeploy-$SHA.dump.tmp \
     && mv $BASE/backups/predeploy-$SHA.dump.tmp $BASE/backups/predeploy-$SHA.dump
   ls -1t $BASE/backups/predeploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f   # keep last 10
+fi
+
+# ---------- validate web server config (a broken Caddyfile must never take the site down) ----------
+log "validating Caddyfile"
+if ! docker run --rm -e DOMAIN="$DOMAIN" -e SITE_DOMAIN="${SITE_DOMAIN:-localhost}" \
+     -v $REL/deploy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine \
+     caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>$BASE/status/caddy-validate.log; then
+  log "Caddyfile is invalid — deploy aborted, current release keeps running"
+  tail -5 $BASE/status/caddy-validate.log || true
+  exit 1
 fi
 
 # ---------- build ----------

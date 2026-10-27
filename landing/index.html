@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feedarte — креативи для каталожної реклами Meta і TikTok</title>
+<meta name="description" content="Feedarte перетворює ваш товарний фід на брендовані креативи з цінами, знижками й логотипами — і щогодини оновлює новий фід для Meta та TikTok Ads.">
+<meta property="og:title" content="Feedarte — креативи для каталожної реклами">
+<meta property="og:description" content="Один дизайн — тисячі товарних карток з актуальними цінами. Фід для Meta та TikTok оновлюється щогодини.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://feedarte.com/">
+<meta name="theme-color" content="#FF6B1A">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/Unbounded.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Onest.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:Unbounded;src:url(/fonts/Unbounded.woff2) format('woff2');font-weight:200 900;font-display:swap}
+@font-face{font-family:Onest;src:url(/fonts/Onest.woff2) format('woff2');font-weight:100 900;font-display:swap}
+:root{
+  --bg:#F2F2F4;--card:#fff;--ink:#16161A;--ink2:#55555F;--ink3:#8A8A95;--line:#E4E4E9;
+  --brand:#FF6B1A;--brand2:#FF9A4D;--brand-soft:#FFF1E8;--red:#E53935;--green:#13A86B;
+  --r:28px;--shadow:0 1px 2px rgba(20,20,30,.04),0 12px 40px -12px rgba(20,20,30,.14);
+  --app:'https://app.feedarte.com';
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:Onest,system-ui,sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+h1,h2,h3,.display{font-family:Unbounded,Onest,sans-serif;letter-spacing:-.02em;line-height:1.08}
+h1{font-size:clamp(34px,4.4vw,58px);font-weight:600}
+h2{font-size:clamp(28px,3.8vw,46px);font-weight:600}
+h3{font-size:19px;font-weight:600;line-height:1.25}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--brand)}
+.eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px rgba(255,107,26,.18)}
+.muted{color:var(--ink2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:54px;padding:0 28px;border-radius:999px;font-weight:600;font-size:16px;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{color:#fff;background:linear-gradient(180deg,var(--brand2),var(--brand) 60%,#F2560A);box-shadow:0 10px 24px -8px rgba(255,107,26,.6),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn-primary:hover{box-shadow:0 14px 30px -8px rgba(255,107,26,.75),inset 0 1px 0 rgba(255,255,255,.35);transform:translateY(-1px)}
+.btn-ghost{background:#fff;border:1px solid var(--line)}
+.btn-ghost:hover{border-color:#cfcfd6}
+.btn svg{width:18px;height:18px}
+
+/* header */
+header{position:sticky;top:12px;z-index:50;margin-top:12px}
+.nav{display:flex;align-items:center;gap:24px;height:64px;padding:0 10px 0 18px;background:rgba(255,255,255,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(228,228,233,.8);border-radius:999px;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:10px;font-family:Unbounded;font-weight:600;font-size:19px}
+.logo img{width:30px;height:30px}
+.nav-links{display:flex;gap:26px;margin-left:12px;font-size:15px;color:var(--ink2)}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{margin-left:auto;display:flex;gap:6px;align-items:center}
+.nav .btn{height:44px;padding:0 20px;font-size:15px}
+.nav .login{padding:0 16px;font-weight:600;font-size:15px;color:var(--ink2)}
+.nav .login:hover{color:var(--ink)}
+
+/* hero */
+.hero{padding:64px 0 40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.hero p.lead{font-size:20px;color:var(--ink2);margin:24px 0 34px;max-width:540px}
+.hero h1 em{font-style:normal;background:linear-gradient(180deg,var(--brand2),var(--brand));-webkit-background-clip:text;background-clip:text;color:transparent}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap}
+.trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:34px;font-size:14px;color:var(--ink2)}
+.trust span{display:flex;align-items:center;gap:8px}
+.trust svg{width:18px;height:18px;color:var(--green)}
+
+.stage{position:relative;height:520px}
+.feedcard{position:absolute;left:0;top:150px;width:230px;background:#1C1C22;color:#D6D6DE;border-radius:22px;padding:18px 18px 20px;font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 30px 60px -20px rgba(0,0,0,.35);z-index:1}
+.feedcard .dots{display:flex;gap:6px;margin-bottom:12px}
+.feedcard .dots i{width:9px;height:9px;border-radius:50%;background:#3a3a44}
+.feedcard .t{color:#FF9A4D}.feedcard .v{color:#9FE3B4}
+.feedcard .row{transition:opacity .4s}
+.arrow{display:none}
+.creative{position:absolute;right:0;top:30px;width:min(380px,72%);aspect-ratio:1;border-radius:26px;background:#fff;box-shadow:0 40px 80px -30px rgba(30,20,10,.35);overflow:hidden;z-index:3}
+.cr-inner{position:absolute;inset:0;transition:opacity .45s,transform .45s}
+.cr-inner.out{opacity:0;transform:scale(.98)}
+.cr-bg{position:absolute;inset:0;background:var(--c1)}
+.cr-blob{position:absolute;left:8%;top:12%;width:84%;height:64%;display:flex;align-items:center;justify-content:center}
+.cr-blob svg{width:78%;height:auto;filter:drop-shadow(0 18px 24px rgba(0,0,0,.18))}
+.cr-brand{position:absolute;left:7%;top:6%;font-family:Unbounded;font-weight:700;font-size:15px;letter-spacing:.06em}
+.cr-badge{position:absolute;right:6%;top:5%;background:var(--red);color:#fff;font-family:Unbounded;font-weight:700;font-size:20px;padding:10px 14px;border-radius:16px;transform:rotate(-6deg);box-shadow:0 8px 18px -6px rgba(229,57,53,.6)}
+.cr-bottom{position:absolute;left:0;right:0;bottom:0;height:27%;background:#fff;padding:5% 7%;display:flex;flex-direction:column;justify-content:center}
+.cr-title{font-size:15px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr-prices{display:flex;align-items:baseline;gap:12px;margin-top:4px}
+.cr-price{font-family:Unbounded;font-weight:700;font-size:28px}
+.cr-old{font-size:17px;color:var(--ink3);text-decoration:line-through}
+.chip{position:absolute;z-index:4;background:#fff;border-radius:999px;padding:9px 14px 9px 10px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);border:1px solid var(--line);animation:float 6s ease-in-out infinite}
+.chip b{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+.chip.c1{left:20px;bottom:24px}.chip.c2{right:-6px;top:6px;animation-delay:-2s}.chip.c3{right:40px;top:418px;animation-delay:-4s;display:none}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* sections */
+section{padding:96px 0}
+.sec-head{max-width:720px;margin-bottom:48px}
+.sec-head h2{margin-top:14px}
+.sec-head p{margin-top:16px;font-size:19px;color:var(--ink2)}
+.center{text-align:center;margin-left:auto;margin-right:auto}
+
+.logos{padding:24px 0 8px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-weight:600;font-size:15px;display:flex;gap:10px;align-items:center}
+.pill svg{width:18px;height:18px}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+.step{background:var(--card);border-radius:var(--r);padding:30px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.step .num{font-family:Unbounded;font-weight:700;font-size:15px;width:40px;height:40px;border-radius:14px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:22px}
+.step p{margin-top:10px;color:var(--ink2);font-size:16px}
+.step .vis{margin-top:24px;height:132px;border-radius:18px;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:14px}
+.urlbox{width:100%;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:12.5px ui-monospace,Menlo,monospace;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urlbox b{color:var(--green);font-weight:600}
+.mini-canvas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.mini-canvas div{aspect-ratio:1;border-radius:10px;background:#fff;position:relative;overflow:hidden}
+.mini-canvas div::after{content:"";position:absolute;left:12%;right:12%;bottom:10%;height:14%;border-radius:4px;background:var(--line)}
+.mini-canvas div::before{content:"";position:absolute;left:24%;right:24%;top:16%;height:46%;border-radius:40%;background:var(--k)}
+
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.feat{background:var(--card);border-radius:var(--r);padding:30px;box-shadow:var(--shadow);grid-column:span 2;display:flex;flex-direction:column}
+.feat.wide{grid-column:span 3}
+.feat .ic{width:46px;height:46px;border-radius:15px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.feat .ic svg{width:22px;height:22px}
+.feat p{margin-top:10px;color:var(--ink2);font-size:16px}
+.demo-prices{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.demo-prices > div{background:var(--bg);border-radius:16px;padding:14px 16px}
+.demo-prices small{display:block;font-size:12px;color:var(--ink3);margin-bottom:4px}
+.demo-prices .np{font-family:Unbounded;font-weight:700;font-size:20px}
+.formats{margin-top:22px;display:flex;align-items:flex-end;gap:10px}
+.formats div{background:var(--bg);border:1.5px dashed #cfcfd6;border-radius:10px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;font-size:11px;font-weight:600;color:var(--ink3)}
+
+.dark{background:#141418;color:#fff;border-radius:40px;margin:0 12px;padding:96px 0}
+.dark .sec-head p{color:#A9A9B5}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.code{background:#1F1F25;border:1px solid #2C2C34;border-radius:24px;padding:24px 26px;font:13.5px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C9C9D3;overflow-x:auto;white-space:pre}
+.code .t{color:#FF9A4D}.code .v{color:#9FE3B4}.code .c{color:#6B6B78}
+.checks{list-style:none;display:grid;gap:16px;margin-top:30px}
+.checks li{display:flex;gap:14px;align-items:flex-start;color:#D9D9E1}
+.checks svg{flex:none;width:24px;height:24px;color:var(--brand2);margin-top:1px}
+.checks b{color:#fff}
+
+.offer{background:linear-gradient(135deg,#FFF6EF,#fff 55%);border:1px solid #FFE0CC;border-radius:40px;padding:56px;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.offer::after{content:"";position:absolute;right:-120px;top:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,154,77,.35),transparent)}
+.plan{background:#fff;border-radius:28px;padding:30px;box-shadow:0 30px 60px -30px rgba(255,107,26,.45);border:1px solid #FFE0CC;position:relative;z-index:1}
+.plan .tag{display:inline-block;background:var(--brand);color:#fff;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px 12px;border-radius:999px}
+.plan .price{font-family:Unbounded;font-weight:700;font-size:44px;margin:16px 0 4px}
+.plan ul{list-style:none;margin:22px 0 26px;display:grid;gap:12px}
+.plan li{display:flex;gap:10px;font-size:15.5px}
+.plan li svg{flex:none;width:20px;height:20px;color:var(--green);margin-top:2px}
+.plan .btn{width:100%}
+
+.faq{max-width:820px;margin:0 auto;display:grid;gap:10px}
+details{background:#fff;border-radius:22px;box-shadow:var(--shadow);padding:0 26px}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 0;font-weight:600;font-size:17.5px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:Unbounded;font-size:22px;color:var(--brand);transition:transform .2s;flex:none}
+details[open] summary::after{transform:rotate(45deg)}
+details p{padding:0 0 22px;color:var(--ink2);font-size:16px}
+
+.final{text-align:center;padding:40px 0 96px}
+.final h2{max-width:780px;margin:0 auto}
+.final p{margin:18px auto 32px;color:var(--ink2);font-size:19px;max-width:560px}
+footer{border-top:1px solid var(--line);padding:30px 0 40px;font-size:14px;color:var(--ink3)}
+footer .wrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+footer .sp{margin-left:auto;display:flex;gap:20px}
+footer a:hover{color:var(--ink)}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.chip{animation:none}.cr-inner{transition:none}}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;padding-top:48px}
+  .stage{height:auto;min-height:0;display:flex;flex-direction:column;align-items:center;gap:0}
+  .creative{position:relative;width:min(400px,100%)}
+  .feedcard,.arrow{display:none}
+  .chip.c1{display:none}.chip.c2{right:0;bottom:auto;top:-14px}
+  .steps{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}.feat,.feat.wide{grid-column:auto}
+  .split,.offer{grid-template-columns:1fr}
+  .offer{padding:32px 22px}
+  .nav-links{display:none}
+  section{padding:72px 0}
+  .dark{border-radius:28px;margin:0 8px;padding:72px 0}
+}
+@media (max-width:520px){
+  body{font-size:16px}
+  .nav{height:58px;padding:0 6px 0 14px}
+  .nav .login{display:none}
+  .nav .btn{height:42px;padding:0 16px;font-size:14px}
+  .hero p.lead{font-size:18px}
+  .cta-row .btn{width:100%}
+  .chip{font-size:12px}
+  .code{font-size:12px;padding:18px}
+  footer .sp{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <nav class="nav">
+    <a href="/" class="logo"><img src="/favicon.svg" alt="">Feedarte</a>
+    <div class="nav-links">
+      <a href="#how">Як це працює</a>
+      <a href="#features">Можливості</a>
+      <a href="#offer">Ціни</a>
+      <a href="#faq">Питання</a>
+    </div>
+    <div class="nav-cta">
+      <a class="login" href="https://app.feedarte.com/login">Увійти</a>
+      <a class="btn btn-primary" href="https://app.feedarte.com/register">Спробувати</a>
+    </div>
+  </nav>
+</header>
+
+<!-- 1. HERO -->
+<div class="hero">
+  <div class="reveal">
+    <span class="eyebrow">Каталожна реклама Meta і TikTok</span>
+    <h1 style="margin-top:18px">Ваш товарний фід — <em>у&nbsp;креативи,</em> які продають</h1>
+    <p class="lead">Feedarte бере XML-фід магазину, накладає ваш дизайн з ціною, знижкою та логотипом бренду на кожен товар і щогодини віддає новий фід для реклами. Без дизайнера на кожну картку.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://app.feedarte.com/register">Почати безкоштовно
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn btn-ghost" href="#how">Як це працює</a>
+    </div>
+    <div class="trust">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Без картки</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Оновлення щогодини</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Тисячі товарів у фіді</span>
+    </div>
+  </div>
+
+  <div class="stage reveal" aria-label="Приклад: товар з фіду перетворюється на рекламний креатив">
+    <div class="feedcard" aria-hidden="true">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="row" id="feedRows"></div>
+    </div>
+    <svg class="arrow" viewBox="0 0 92 40" fill="none" aria-hidden="true"><path d="M2 20c26-14 52-14 80 0" stroke="#FF6B1A" stroke-width="2.5" stroke-dasharray="5 6" stroke-linecap="round"/><path d="M74 12l10 8-11 6" stroke="#FF6B1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="creative" id="creative"><div class="cr-inner" id="crInner"></div></div>
+    <div class="chip c1"><b style="background:var(--red)">%</b><span id="chipText">Знижку пораховано автоматично</span></div>
+    <div class="chip c2"><b style="background:var(--green)">↻</b>Фід оновлено щойно</div>
+  </div>
+</div>
+
+<div class="logos reveal">
+  <span class="pill"><svg viewBox="0 0 24 24" fill="#0866FF"><path d="M12 2C6.5 2 2 6.5 2 12c0 5 3.7 9.1 8.4 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7C18.3 21.1 22 17 22 12c0-5.5-4.5-10-10-10z"/></svg>Meta Advantage+ Catalog</span>
+  <span class="pill"><svg viewBox="0 0 24 24" fill="#111"><path d="M16.6 5.8A4.3 4.3 0 0 1 15.5 3h-3.1v12.4a2.6 2.6 0 1 1-2.6-2.6c.3 0 .5 0 .8.1V9.7a5.7 5.7 0 1 0 4.9 5.7V9a7.4 7.4 0 0 0 4.3 1.4V7.3a4.3 4.3 0 0 1-3.2-1.5z"/></svg>TikTok Catalog Ads</span>
+  <span class="pill">XML · RSS · YML фіди</span>
+  <span class="pill">Prom · Horoshop · OpenCart · Shopify</span>
+</div>
+</div>
+
+<!-- 2. HOW -->
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Як це працює</span>
+      <h2>Три кроки — і каталог оживає</h2>
+      <p>Налаштуйте один раз. Далі Feedarte сам стежить за цінами, наявністю та новими товарами.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3>Підключіть фід</h3>
+        <p>Вставте посилання на XML-фід магазину — той самий, що вже йде у Meta або Google.</p>
+        <div class="vis"><div class="urlbox">https://shop.ua/feed.xml <b>· 1 205 товарів ✓</b></div></div>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3>Зберіть дизайн</h3>
+        <p>Візьміть готовий шаблон, імпортуйте макет з Figma чи PNG — або зберіть свій у редакторі.</p>
+        <div class="vis"><div class="mini-canvas"><div style="--k:#FFD8BF"></div><div style="--k:#D7E6FF"></div><div style="--k:#DDF3E6"></div></div></div>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3>Отримайте новий фід</h3>
+        <p>Скопіюйте посилання на фід з готовими картинками і додайте його в каталог Meta чи TikTok.</p>
+        <div class="vis"><div class="urlbox">feedarte.com/feeds/…/meta.xml <b>· оновлено 12 хв тому</b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. FEATURES -->
+<section id="features" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Можливості</span>
+      <h2>Усе, що потрібно для сильних товарних креативів</h2>
+    </div>
+    <div class="grid">
+      <div class="feat wide reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4z"/><circle cx="7" cy="7" r="1.5"/></svg></div>
+        <h3>Розумна ціна і знижки</h3>
+        <p>Є знижка — показуємо стару ціну перекресленою, нову акцентом і відсоток на бейджі. Немає — звичайна ціна без зайвого. Все рахується з фіду автоматично.</p>
+        <div class="demo-prices">
+          <div><small>Зі знижкою</small><span class="np" style="color:var(--red)">3 499 ₴</span> <s class="muted" style="font-size:14px">4 999 ₴</s></div>
+          <div><small>Без знижки</small><span class="np">2 190 ₴</span></div>
+        </div>
+      </div>
+      <div class="feat wide reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></div>
+        <h3>Усі формати і A/B-тести</h3>
+        <p>Кілька дизайнів на один фід: квадрат, 4:5, сторіз і горизонтальний. Кожен — окремий фід, щоб порівнювати, що краще конвертує.</p>
+        <div class="formats">
+          <div style="width:58px;height:58px">1:1</div>
+          <div style="width:52px;height:65px">4:5</div>
+          <div style="width:42px;height:75px">9:16</div>
+          <div style="width:84px;height:44px">1.91:1</div>
+        </div>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"/></svg></div>
+        <h3>Логотипи брендів</h3>
+        <p>Завантажте бібліотеку логотипів — на кожному товарі буде лого його бренду. Немає лого — акуратна назва текстом.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.6 7.6"/><circle cx="11" cy="11" r="2"/></svg></div>
+        <h3>Імпорт з Figma і PNG</h3>
+        <p>Киньте посилання на фрейм у Figma або картинку макета — редактор збере шари і прив’яже ціни до полів фіду.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
+        <h3>Умови показу</h3>
+        <p>Плашка «Новинка» лише для нових, «Хіт» — для категорії, бейдж — лише якщо знижка від 30%. Будь-яка логіка без коду.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. FEED / RELIABILITY -->
+<section class="dark" id="feed">
+  <div class="wrap split">
+    <div class="reveal">
+      <span class="eyebrow">Завжди актуально</span>
+      <h2 style="margin-top:14px">Ціна змінилась о&nbsp;10:00 — креатив оновився о&nbsp;11:00</h2>
+      <ul class="checks">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><b>Синхронізація щогодини.</b> Нові товари, ціни, знижки й наявність підтягуються самі.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg><span><b>Перемальовуємо лише змінене.</b> Тисячі товарів і варіантів обробляються за хвилини.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span><b>Оригінальні поля зберігаються.</b> Ви отримуєте той самий фід — лише з новими картинками, тож каталог у кабінеті не ламається.</span></li>
+      </ul>
+    </div>
+    <div class="code reveal" aria-label="Приклад вихідного фіду"><span class="c">&lt;!-- feedarte.com/feeds/…/meta.xml --&gt;</span>
+<span class="t">&lt;item&gt;</span>
+  <span class="t">&lt;g:id&gt;</span>SKU-48213<span class="t">&lt;/g:id&gt;</span>
+  <span class="t">&lt;g:title&gt;</span>Кросівки Runner<span class="t">&lt;/g:title&gt;</span>
+  <span class="t">&lt;g:price&gt;</span>4999.00 UAH<span class="t">&lt;/g:price&gt;</span>
+  <span class="t">&lt;g:sale_price&gt;</span>3499.00 UAH<span class="t">&lt;/g:sale_price&gt;</span>
+  <span class="t">&lt;g:image_link&gt;</span>
+    <span class="v">…/r/9f2c41e7.jpg</span>  <span class="c">← ваш креатив</span>
+  <span class="t">&lt;/g:image_link&gt;</span>
+<span class="t">&lt;/item&gt;</span></div>
+  </div>
+</section>
+
+<!-- 5. OFFER -->
+<section id="offer">
+  <div class="wrap">
+    <div class="offer reveal">
+      <div style="position:relative;z-index:1">
+        <span class="eyebrow">Ранній доступ</span>
+        <h2 style="margin-top:14px">Зараз — безкоштовно для перших магазинів</h2>
+        <p class="muted" style="margin-top:16px;font-size:19px;max-width:520px">Feedarte у бета-версії. Підключайте свої каталоги, запускайте рекламу й допомагайте нам зробити сервіс кращим — а ми допоможемо з налаштуванням особисто.</p>
+      </div>
+      <div class="plan">
+        <span class="tag">Бета</span>
+        <div class="price">0 ₴</div>
+        <div class="muted" style="font-size:15px">на час бета-тестування</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Проєкти й фіди без обмежень на старті</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Усі формати, шаблони та імпорт макетів</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Оновлення фідів щогодини</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Допомога з першим дизайном</li>
+        </ul>
+        <a class="btn btn-primary" href="https://app.feedarte.com/register">Отримати доступ</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. FAQ -->
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head center reveal" style="text-align:center">
+      <span class="eyebrow">Питання</span>
+      <h2>Часті запитання</h2>
+    </div>
+    <div class="faq">
+      <details class="reveal"><summary>Який фід потрібен?</summary><p>Підходить XML-фід у форматі Google/Meta (RSS), Atom або YML — такий зазвичай уже є у вашої CMS чи модуля для маркетплейсів. Достатньо посилання.</p></details>
+      <details class="reveal"><summary>Як додати результат у рекламний кабінет?</summary><p>У Meta Commerce Manager або TikTok Catalog додайте нове джерело даних за посиланням на фід від Feedarte і поставте розклад оновлення щогодини.</p></details>
+      <details class="reveal"><summary>Що буде, якщо зміниться ціна чи з’явиться новий товар?</summary><p>Feedarte перевіряє фід щогодини, перемальовує лише змінені товари й оновлює вихідний фід — нічого робити не потрібно.</p></details>
+      <details class="reveal"><summary>Скільки товарів можна підключити?</summary><p>Сервіс розрахований на каталоги в тисячі товарів разом з варіантами розмірів і кольорів. Однакові картки для варіантів не дублюються.</p></details>
+      <details class="reveal"><summary>Чи потрібен дизайнер?</summary><p>Ні. Є готові шаблони під кожен формат, а редактор схожий на звичні інструменти: перетягуйте, групуйте, міняйте кольори й шрифти. Якщо макет уже є у Figma — його можна імпортувати.</p></details>
+    </div>
+  </div>
+</section>
+
+<div class="final wrap reveal">
+  <h2>Перший креативний фід — за 15 хвилин</h2>
+  <p>Зареєструйтесь, вставте посилання на фід і подивіться, як виглядатимуть ваші товари в рекламі.</p>
+  <a class="btn btn-primary" href="https://app.feedarte.com/register">Спробувати Feedarte
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a href="/" class="logo" style="font-size:16px"><img src="/favicon.svg" alt="" style="width:24px;height:24px">Feedarte</a>
+    <span>© <span id="yr">2026</span> Feedarte</span>
+    <div class="sp">
+      <a href="https://app.feedarte.com/login">Увійти</a>
+      <a href="https://app.feedarte.com/register">Реєстрація</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var Y = document.getElementById('yr'); if (Y) Y.textContent = new Date().getFullYear();
+  // products drawn as simple illustrations — the hero cycles through them to show discount logic
+  var art = {
+    shoe: '<svg viewBox="0 0 200 120"><path d="M14 74c0-10 6-16 16-17 16-2 32-12 44-28 4-5 12-6 16-1 8 10 18 15 34 17l40 5c16 2 24 12 24 24v6H14z" fill="#FF7A2E"/><path d="M14 83h174v10a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z" fill="#fff" stroke="#E7E7EC" stroke-width="3"/><path d="M82 40l10 10M90 34l10 10M98 30l10 9" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>',
+    bag: '<svg viewBox="0 0 200 170"><path d="M70 52c0-22 12-36 30-36s30 14 30 36" fill="none" stroke="#3B4B8A" stroke-width="9" stroke-linecap="round"/><path d="M34 54h132l-10 102a10 10 0 0 1-10 9H54a10 10 0 0 1-10-9z" fill="#4C64C8"/><path d="M34 54h132l-2 18H36z" fill="#3B4FA6"/></svg>',
+    bottle: '<svg viewBox="0 0 120 200"><rect x="44" y="6" width="32" height="22" rx="6" fill="#1F7A54"/><path d="M40 28h40v18c14 8 20 18 20 32v100a14 14 0 0 1-14 14H34a14 14 0 0 1-14-14V78c0-14 6-24 20-32z" fill="#2DB37A"/><rect x="20" y="96" width="80" height="44" fill="#E9FFF4"/></svg>'
+  };
+  var items = [
+    { brand: 'RUNLAB', title: 'Кросівки Runner, помаранчеві', art: 'shoe', bg: '#FFE9DB', price: '3 499 ₴', old: '4 999 ₴', pct: '−30%', id: 'SKU-48213', p: '4999', s: '3499' },
+    { brand: 'NORDA', title: 'Сумка-тоут Everyday, синя', art: 'bag', bg: '#E6ECFF', price: '2 190 ₴', old: '', pct: '', id: 'SKU-10577', p: '2190', s: '' },
+    { brand: 'HYDRO', title: 'Термопляшка Steel 750 мл', art: 'bottle', bg: '#E2F6EC', price: '690 ₴', old: '890 ₴', pct: '−22%', id: 'SKU-77302', p: '890', s: '690' }
+  ];
+  var inner = document.getElementById('crInner'), rows = document.getElementById('feedRows'), chip = document.getElementById('chipText');
+  var i = 0;
+  function render(it) {
+    inner.innerHTML =
+      '<div class="cr-bg" style="--c1:' + it.bg + '"></div>' +
+      '<div class="cr-brand">' + it.brand + '</div>' +
+      (it.pct ? '<div class="cr-badge">' + it.pct + '</div>' : '') +
+      '<div class="cr-blob">' + art[it.art] + '</div>' +
+      '<div class="cr-bottom"><div class="cr-title">' + it.title + '</div><div class="cr-prices">' +
+      '<span class="cr-price" style="color:' + (it.old ? 'var(--red)' : 'var(--ink)') + '">' + it.price + '</span>' +
+      (it.old ? '<span class="cr-old">' + it.old + '</span>' : '') + '</div></div>';
+    rows.innerHTML =
+      '<span class="t">&lt;item&gt;</span><br>&nbsp;<span class="t">&lt;id&gt;</span>' + it.id + '<br>' +
+      '&nbsp;<span class="t">&lt;brand&gt;</span>' + it.brand + '<br>' +
+      '&nbsp;<span class="t">&lt;price&gt;</span><span class="v">' + it.p + '</span><br>' +
+      (it.s ? '&nbsp;<span class="t">&lt;sale_price&gt;</span><span class="v">' + it.s + '</span><br>' : '&nbsp;<span style="opacity:.45">&lt;!-- без знижки --&gt;</span><br>') +
+      '&nbsp;<span class="t">&lt;image_link&gt;</span>…<br><span class="t">&lt;/item&gt;</span>';
+    chip.textContent = it.old ? 'Знижку ' + it.pct.replace('−', '') + ' пораховано' : 'Без знижки — звичайна ціна';
+  }
+  render(items[0]);
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce) setInterval(function () {
+    inner.classList.add('out');
+    setTimeout(function () { i = (i + 1) % items.length; render(items[i]); inner.classList.remove('out'); }, 450);
+  }, 3200);
+
+  var els = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    els.forEach(function (el) { io.observe(el); });
+  } else els.forEach(function (el) { el.classList.add('in'); });
+})();
+</script>
+</body>
+</html>
