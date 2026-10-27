@@ -331,6 +331,97 @@ function SecretField({ label, hint, current, field, placeholder, onSaved }: { la
   );
 }
 
+function MailSettings() {
+  const [m, setM] = useState<any>(null);
+  const [secret, setSecret] = useState({ resendKey: '', smtpPass: '' });
+  const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
+  const load = () => api.get('/api/admin/settings').then((r) => setM(r.mail));
+  useEffect(() => {
+    load();
+  }, []);
+  if (!m) return <Spinner />;
+  const set = (k: string, v: any) => setM({ ...m, [k]: v });
+  const save = async () => {
+    setBusy('save');
+    try {
+      await api.put('/api/admin/mail', { provider: m.provider, from: m.from, smtpHost: m.smtpHost, smtpPort: m.smtpPort, smtpUser: m.smtpUser, ...secret });
+      setSecret({ resendKey: '', smtpPass: '' });
+      toast('Збережено');
+      load();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="island p-6 space-y-4">
+      <div>
+        <div className="font-semibold text-[17px] tracking-tight">Пошта</div>
+        <p className="text-sm text-ink-500 mt-1">Для листів-підтверджень (наприклад, передача проєкту іншому акаунту).</p>
+      </div>
+      <div className="seg w-full">
+        {[['none', 'Вимкнено'], ['resend', 'Resend'], ['smtp', 'SMTP']].map(([v, l]) => (
+          <button key={v} type="button" data-on={m.provider === v} onClick={() => set('provider', v)}>{l}</button>
+        ))}
+      </div>
+      {m.provider !== 'none' && (
+        <div>
+          <label className="label">Від кого</label>
+          <input className="input" placeholder="Feedarte <no-reply@feedarte.com>" value={m.from} onChange={(e) => set('from', e.target.value)} />
+        </div>
+      )}
+      {m.provider === 'resend' && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="label !mb-0">Resend API key</label>
+            {m.resendKey ? <span className="chip bg-emerald-50 text-emerald-700">Збережено · {m.resendKey}</span> : <span className="chip bg-ink-100 text-ink-500">Немає</span>}
+          </div>
+          <input className="input font-mono text-xs" type="password" autoComplete="off" placeholder="re_…" value={secret.resendKey} onChange={(e) => setSecret({ ...secret, resendKey: e.target.value })} />
+          <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
+            resend.com → <b>Domains → Add domain</b> (feedarte.com, додайте показані DNS-записи в Cloudflare) → <b>API Keys → Create</b>. Безкоштовно до 3000 листів на місяць.
+          </p>
+        </div>
+      )}
+      {m.provider === 'smtp' && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-2"><label className="label">Сервер</label><input className="input" placeholder="smtp-relay.brevo.com" value={m.smtpHost} onChange={(e) => set('smtpHost', e.target.value)} /></div>
+          <div><label className="label">Порт</label><input className="input" type="number" value={m.smtpPort} onChange={(e) => set('smtpPort', Number(e.target.value))} /></div>
+          <div className="col-span-3"><label className="label">Логін</label><input className="input" value={m.smtpUser} onChange={(e) => set('smtpUser', e.target.value)} /></div>
+          <div className="col-span-3">
+            <label className="label">Пароль {m.smtpPass && <span className="text-ink-400 font-normal">(збережено — залиште порожнім, щоб не змінювати)</span>}</label>
+            <input className="input" type="password" autoComplete="off" value={secret.smtpPass} onChange={(e) => setSecret({ ...secret, smtpPass: e.target.value })} />
+          </div>
+          <p className="col-span-3 text-xs text-ink-500">Порти 25 і 465 на нових серверах Hetzner часто заблоковані — використовуйте 587 або Resend.</p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button className="btn-primary" disabled={!!busy} onClick={save}>{busy === 'save' && <Spinner />} Зберегти</button>
+        {m.provider !== 'none' && (
+          <button
+            className="btn-outline"
+            disabled={!!busy}
+            onClick={async () => {
+              setBusy('test');
+              try {
+                const r = await api.post('/api/admin/mail/test', {});
+                toast(`Тестовий лист надіслано на ${r.to}`);
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            {busy === 'test' && <Spinner />} Надіслати тест собі
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [mode, setMode] = useState<string | null>(null);
   const [keys, setKeys] = useState<{ figmaToken: string; anthropicKey: string }>({ figmaToken: '', anthropicKey: '' });
@@ -373,6 +464,7 @@ function SettingsTab() {
         hint={<>console.anthropic.com → <b>API Keys → Create Key</b>. Один імпорт картинки коштує приблизно $0.01–0.05.</>}
       />
     </div>
+    <div className="space-y-4">
     <div className="island p-6">
       <div className="font-semibold mb-3">Реєстрація нових користувачів</div>
       <div className="space-y-2">
@@ -394,6 +486,8 @@ function SettingsTab() {
           </label>
         ))}
       </div>
+    </div>
+    <MailSettings />
     </div>
     </div>
   );

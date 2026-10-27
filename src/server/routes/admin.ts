@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { getMailConfig, letter, sendMail, type MailConfig } from '../mail';
 import { eq, sql as dsql } from 'drizzle-orm';
 import fs from 'node:fs';
 import type { FastifyInstance } from 'fastify';
@@ -104,7 +105,49 @@ export async function adminRoutes(app: FastifyInstance) {
     registrationMode: await getSetting<RegistrationMode>('registrationMode', 'approval'),
     figmaToken: mask(await getSetting<string>('figmaToken', '')),
     anthropicKey: mask(await getSetting<string>('anthropicKey', '')),
+    mail: await (async () => {
+      const m = await getMailConfig();
+      return { ...m, resendKey: mask(m.resendKey), smtpPass: m.smtpPass ? '••••••••' : '' };
+    })(),
   }));
+
+  /** mail settings: empty secret fields keep the stored value */
+  app.put('/api/admin/mail', async (req) => {
+    const b = z
+      .object({
+        provider: z.enum(['none', 'resend', 'smtp']),
+        from: z.string().trim().max(200),
+        resendKey: z.string().trim().max(300).optional(),
+        smtpHost: z.string().trim().max(200).optional(),
+        smtpPort: z.coerce.number().int().min(1).max(65535).optional(),
+        smtpUser: z.string().trim().max(200).optional(),
+        smtpPass: z.string().max(300).optional(),
+      })
+      .parse(req.body);
+    if (b.provider !== 'none' && !/@/.test(b.from)) throw new HttpError(400, 'Вкажіть адресу відправника, наприклад Feedarte <no-reply@feedarte.com>');
+    const cur = await getMailConfig();
+    const next: MailConfig = {
+      provider: b.provider,
+      from: b.from,
+      resendKey: b.resendKey ? b.resendKey : cur.resendKey,
+      smtpHost: b.smtpHost ?? cur.smtpHost,
+      smtpPort: b.smtpPort ?? cur.smtpPort,
+      smtpUser: b.smtpUser ?? cur.smtpUser,
+      smtpPass: b.smtpPass ? b.smtpPass : cur.smtpPass,
+    };
+    await setSetting('mail', next);
+    return { ok: true };
+  });
+
+  app.post('/api/admin/mail/test', async (req) => {
+    const to = req.user!.email;
+    try {
+      await sendMail({ to, subject: 'Feedarte: тестовий лист', ...letter({ title: 'Пошта працює ✓', lines: ['Це тестовий лист з адмін-панелі Feedarte. Листи для передачі проєктів надходитимуть так само.'] }) });
+    } catch (e) {
+      throw new HttpError(400, `Не вдалося надіслати: ${(e as Error).message}`);
+    }
+    return { ok: true, to };
+  });
 
   app.put('/api/admin/settings', async (req) => {
     const b = z

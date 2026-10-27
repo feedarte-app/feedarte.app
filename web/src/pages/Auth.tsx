@@ -92,12 +92,12 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {mode === 'login' ? (
             regMode !== 'closed' && (
               <>
-                Немає акаунта? <Link to="/register" className="text-brand-600 font-medium">Зареєструватися</Link>
+                Немає акаунта? <Link to={`/register${location.search}`} className="text-brand-600 font-medium">Зареєструватися</Link>
               </>
             )
           ) : (
             <>
-              Вже є акаунт? <Link to="/login" className="text-brand-600 font-medium">Увійти</Link>
+              Вже є акаунт? <Link to={`/login${location.search}`} className="text-brand-600 font-medium">Увійти</Link>
             </>
           )}
         </div>

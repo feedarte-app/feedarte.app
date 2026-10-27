@@ -217,3 +217,29 @@ export const jobs = pgTable(
     uniqueIndex('jobs_dedupe_queued_uq').on(t.dedupeKey).where(sql`status = 'queued'`),
   ],
 );
+
+/** Hand-over of a project to another account, confirmed by the recipient via an emailed link. */
+export const projectTransfers = pgTable(
+  'project_transfers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    fromUserId: uuid('from_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    toEmail: text('to_email').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    status: text('status').$type<'pending' | 'accepted' | 'declined' | 'cancelled'>().notNull().default('pending'),
+    emailSent: boolean('email_sent').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    index('project_transfers_project_idx').on(t.projectId),
+    uniqueIndex('project_transfers_one_pending_uq').on(t.projectId).where(sql`status = 'pending'`),
+  ],
+);

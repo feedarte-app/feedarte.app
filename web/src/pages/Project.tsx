@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Plus, Rss, RefreshCw, Trash2, Pencil, Clock } from 'lucide-react';
+import { ChevronLeft, Plus, Rss, RefreshCw, Trash2, Pencil, Clock, ArrowRightLeft } from 'lucide-react';
+import { TransferModal } from './Transfer';
 import { api, timeAgo } from '../api';
 import { Empty, Modal, Spinner, StatusBadge, useToast } from '../ui';
 
@@ -63,6 +64,7 @@ export function ProjectPage() {
   const [data, setData] = useState<any>(null);
   const [add, setAdd] = useState(false);
   const [rename, setRename] = useState(false);
+  const [transfer, setTransfer] = useState(false);
   const [newName, setNewName] = useState('');
 
   const load = useCallback(() => api.get(`/api/projects/${id}`).then(setData).catch(() => nav('/')), [id]);
@@ -89,6 +91,9 @@ export function ProjectPage() {
           </button>
         </div>
         <div className="flex gap-2">
+          <button className="btn-outline" onClick={() => setTransfer(true)} title="Передати проєкт в інший акаунт">
+            <ArrowRightLeft className="w-4 h-4" /> Передати
+          </button>
           <button
             className="btn-danger"
             onClick={async () => {
@@ -173,6 +178,7 @@ export function ProjectPage() {
           }}
         />
       </Modal>
+      <TransferModal open={transfer} onClose={() => setTransfer(false)} projectId={data.project.id} projectName={data.project.name} />
       <Modal open={rename} onClose={() => setRename(false)} title="Перейменувати проєкт" width="max-w-md">
         <form
           className="space-y-4"

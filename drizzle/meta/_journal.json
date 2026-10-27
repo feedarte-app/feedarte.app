@@ -15,6 +15,13 @@
       "when": 1793056131649,
       "tag": "0001_logo_maps",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793061428810,
+      "tag": "0002_project_transfers",
+      "breakpoints": true
     }
   ]
 }

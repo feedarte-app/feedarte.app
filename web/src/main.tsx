@@ -1,3 +1,4 @@
+import { TransferPage } from './pages/Transfer';
 import { StrictMode, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -138,6 +139,7 @@ function App() {
           <Route path="/projects/:id" element={<Protected><ProjectPage /></Protected>} />
           <Route path="/feeds/:id" element={<Protected><FeedPage /></Protected>} />
           <Route path="/designs/:id" element={<Protected bare><EditorPage /></Protected>} />
+          <Route path="/transfer/:token" element={<Protected><TransferPage /></Protected>} />
           <Route path="/admin" element={<Protected admin><AdminPage /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
