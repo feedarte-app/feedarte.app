@@ -3,7 +3,10 @@
 	# rendered images & output feeds are large/static — give them generous timeouts
 	reverse_proxy app:3000 {
 		health_uri /api/health
-		health_interval 30s
+		health_interval 5s
+		# during a deploy the app restarts for a few seconds: hold requests instead of answering 503
+		lb_try_duration 45s
+		lb_try_interval 500ms
 	}
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
