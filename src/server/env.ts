@@ -19,7 +19,7 @@ export const env = {
   dataDir: path.resolve(process.env.DATA_DIR ?? './data'),
   fontsDir: path.resolve(process.env.FONTS_DIR ?? './assets/fonts'),
   webDir: path.resolve(process.env.WEB_DIR ?? './dist/web'),
-  workerConcurrency: Number(process.env.WORKER_CONCURRENCY ?? 2),
+  workerConcurrency: Math.max(2, Number(process.env.WORKER_CONCURRENCY ?? 3)),
   renderConcurrency: Number(process.env.RENDER_CONCURRENCY ?? 6),
   allowPrivateUrls: bool(process.env.ALLOW_PRIVATE_URLS, false),
   maxFeedBytes: Number(process.env.MAX_FEED_MB ?? 300) * 1024 * 1024,

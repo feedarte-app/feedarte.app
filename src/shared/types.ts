@@ -125,13 +125,27 @@ export interface ImageFallback {
 export interface ImageLayer extends LayerBase {
   type: 'image';
   source: ImageSource;
-  fit: 'contain' | 'cover' | 'fill';
+  /**
+   * smart: decides per photo — lifestyle shots fill the frame (cover); packshots on a plain/transparent
+   * background are trimmed of empty margins and fitted whole with padding
+   */
+  fit: 'contain' | 'cover' | 'fill' | 'smart';
   hAlign: 'left' | 'center' | 'right';
   vAlign: 'top' | 'middle' | 'bottom';
   radius: number;
+  /** settings for fit: 'smart' */
+  smart?: SmartFit | null;
   stroke?: { color: string; width: number } | null;
   /** what to show when the image (e.g. a brand logo) is missing */
   fallback?: ImageFallback | null;
+}
+
+export interface SmartFit {
+  /** padding around a packshot, % of the frame's shorter side */
+  pad: number;
+  /** plain background of a packshot: 'card' paints the frame in the photo's own background colour (seamless),
+   *  'blend' dissolves a white background into whatever is underneath (multiply) */
+  bg: 'card' | 'blend';
 }
 
 export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'triangle' | 'burst';

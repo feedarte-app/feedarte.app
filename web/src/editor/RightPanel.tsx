@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import type { CustomFont, DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
 import { LogoLibrary } from './LogoLibrary';
-import { textMinSize } from '../../../src/shared/render';
+import { DEFAULT_SMART, textMinSize } from '../../../src/shared/render';
 import { FontPicker, weightsFor } from './FontPicker';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
 import { ColorInput, NumberInput, Row, Section, Seg, Toggle } from './controls';
@@ -489,8 +489,31 @@ function ImageStyle({ layer, setLayer }: { layer: ImageLayer; setLayer: Props['s
   return (
     <Section title="Зображення">
       <Row label="Масштаб">
-        <Seg value={layer.fit} onChange={(v) => setLayer({ fit: v })} options={[{ v: 'contain', label: 'Вписати' }, { v: 'cover', label: 'Заповнити' }, { v: 'fill', label: 'Розтягти' }]} />
+        <Seg value={layer.fit} onChange={(v) => setLayer({ fit: v })} options={[{ v: 'smart', label: 'Авто', title: 'Сам вирішує для кожного фото' }, { v: 'cover', label: 'Заповнити' }, { v: 'contain', label: 'Вписати' }]} />
       </Row>
+      {layer.fit === 'smart' && (() => {
+        const sm = { ...DEFAULT_SMART, ...(layer.smart ?? {}) };
+        return (
+          <>
+            <p className="text-[11px] text-ink-500 leading-snug">
+              Фото на однотонному чи прозорому фоні (пекшот) обрізається від порожніх полів і вписується цілим. Фото з інтер'єром, моделлю чи природою — заповнює рамку.
+            </p>
+            <Row label="Відступ">
+              <NumberInput value={sm.pad} min={0} max={30} suffix="%" onChange={(v) => setLayer({ smart: { ...sm, pad: v } })} />
+            </Row>
+            <Row label="Фон пекшота">
+              <Seg
+                value={sm.bg}
+                onChange={(v) => setLayer({ smart: { ...sm, bg: v } })}
+                options={[
+                  { v: 'card', label: 'Картка', title: 'Рамка заливається кольором фону самого фото — без швів' },
+                  { v: 'blend', label: 'Розчинити', title: 'Білий фон фото зникає й показує підкладку під ним (для світлих підкладок)' },
+                ]}
+              />
+            </Row>
+          </>
+        );
+      })()}
       <Row label="По гориз.">
         <Seg value={layer.hAlign} onChange={(v) => setLayer({ hAlign: v })} options={[{ v: 'left', label: <AlignLeft className="w-4 h-4" /> }, { v: 'center', label: <AlignCenter className="w-4 h-4" /> }, { v: 'right', label: <AlignRight className="w-4 h-4" /> }]} />
       </Row>

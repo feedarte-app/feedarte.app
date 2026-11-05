@@ -118,7 +118,30 @@ async function main() {
         from sync_runs where started_at > now() - interval '1 day' order by id desc limit 100`;
       const feeds = await sqlClient`select id, interval_minutes, enabled, status, next_sync_at from feeds`;
       const workers = await sqlClient`select key, value from settings where key like 'worker:%'`;
-      return { version: env.appVersion, workerConcurrency: env.workerConcurrency, renderConcurrency: env.renderConcurrency, workers, feeds, jobs, designs, syncs };
+      const du = async (dir: string): Promise<{ files: number; mb: number }> => {
+        let files = 0, bytes = 0;
+        const walk = async (d: string) => {
+          let ents: fs.Dirent[] = [];
+          try { ents = await fs.promises.readdir(d, { withFileTypes: true }); } catch { return; }
+          for (const e of ents) {
+            const p = path.join(d, e.name);
+            if (e.isDirectory()) await walk(p);
+            else { files++; try { bytes += (await fs.promises.stat(p)).size; } catch { /* gone */ } }
+          }
+        };
+        await walk(dir);
+        return { files, mb: Math.round(bytes / 1048576) };
+      };
+      const disk = {
+        rendered: await du(path.join(env.dataDir, 'public', 'r')),
+        uploads: await du(path.join(env.dataDir, 'public', 'a')),
+        photoCache: await du(path.join(env.dataDir, 'cache', 'img')),
+        previewCache: await du(path.join(env.dataDir, 'cache', 'img-s')),
+        feeds: await du(path.join(env.dataDir, 'public', 'feeds')),
+        db: (await sqlClient`select pg_size_pretty(pg_database_size(current_database())) as size`)[0].size,
+        host: read('disk.txt'),
+      };
+      return { version: env.appVersion, disk, workerConcurrency: env.workerConcurrency, renderConcurrency: env.renderConcurrency, workers, feeds, jobs, designs, syncs };
     }
     return { version: env.appVersion, deploy: s ? JSON.parse(s) : null, log: read('last-deploy.log') };
   });

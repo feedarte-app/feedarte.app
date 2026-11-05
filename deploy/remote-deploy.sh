@@ -90,4 +90,8 @@ fi
 ls -1dt $BASE/releases/*/ | tail -n +6 | xargs -r rm -rf
 docker image ls feedarte --format '{{.Tag}}' | grep -vE '^(latest|previous|'"$SHA"')$' | xargs -r -I{} docker rmi feedarte:{} >/dev/null 2>&1 || true
 docker image prune -f >/dev/null
+# build cache grows with every release — keep only the last couple of days of it
+docker builder prune -af --filter "until=48h" >/dev/null 2>&1 || true
+# disk report, visible via /api/deploy-status?queue=1
+{ echo "== df /"; df -h / ; echo; echo "== docker system df"; docker system df; echo; echo "== $BASE"; du -sh $BASE/* 2>/dev/null; } > $BASE/status/disk.txt 2>&1 || true
 log "done"

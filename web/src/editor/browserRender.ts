@@ -1,5 +1,12 @@
 import { FONTS } from '../../../src/shared/fonts';
-import { drawDesign, resolveDesign, collectUrls, parseIconUrl, type ResolvedDesign, type DrawOptions } from '../../../src/shared/render';
+import { drawDesign, resolveDesign, collectUrls, parseIconUrl, setCanvasFactory, type ResolvedDesign, type DrawOptions } from '../../../src/shared/render';
+
+setCanvasFactory((w, h) => {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+});
 import { ProductContext } from '../../../src/shared/fields';
 import type { CustomFont, DesignDoc, LogoMaps, ProductData } from '../../../src/shared/types';
 import { imgProxy } from '../api';

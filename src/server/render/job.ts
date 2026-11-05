@@ -63,8 +63,20 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   let thumb: string | null = null;
   let lastBeat = Date.now();
 
+  // a user publishing the design again while this (now stale) render runs: stop early, the new job takes over
+  let superseded = false;
+  const watch = setInterval(async () => {
+    try {
+      const [q] = await sql`select 1 from jobs where dedupe_key = ${'render:' + designId} and status = 'queued' and priority <= 3 limit 1`;
+      if (q) superseded = true;
+    } catch {
+      /* ignore */
+    }
+  }, 4000);
+
   try {
   for (;;) {
+    if (superseded) break;
     const rows = await sql<{ id: number; data: ProductData }[]>`
       select id, data from products where feed_id = ${design.feedId} and id > ${lastId} order by id limit ${PAGE}`;
     if (!rows.length) break;
@@ -84,6 +96,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
 
     await pool(tasks, Math.max(env.renderConcurrency, renderPool.size * 2), async (t) => {
       used.add(t.name);
+      if (superseded) return;
       if (existing.has(t.name)) {
         reused++;
         return;
@@ -132,6 +145,12 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     }
   }
 
+  if (superseded) {
+    clearInterval(watch);
+    await writer.abort();
+    log.info({ designId, processed }, 'render superseded by a newer publish');
+    return;
+  }
   const still = await db.query.designs.findFirst({ where: eq(schema.designs.id, designId), columns: { id: true } });
   if (!still) {
     // design/feed deleted while rendering — don't resurrect a public feed
@@ -143,6 +162,8 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   } catch (e) {
     await writer.abort();
     throw e;
+  } finally {
+    clearInterval(watch);
   }
 
   // garbage-collect images no longer referenced (after grace period)

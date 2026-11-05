@@ -1,5 +1,5 @@
 // Canvas renderer shared by browser (HTMLCanvasElement) and server (@napi-rs/canvas).
-import type { DesignDoc, Fill, ImageLayer, ImageSource, Layer, LogoMaps, ShapeLayer, TextLayer, IconLayer } from './types';
+import type { SmartFit, DesignDoc, Fill, ImageLayer, ImageSource, Layer, LogoMaps, ShapeLayer, TextLayer, IconLayer } from './types';
 import { DEFAULT_FORMAT } from './types';
 import { ProductContext, evalCondition, normKey, renderTemplate, templateFields } from './fields';
 
@@ -370,27 +370,137 @@ function fallbackTextLayer(l: ImageLayer): TextLayer {
   } as TextLayer;
 }
 
-function drawImageFit(g: G, img: Img, l: Pick<ImageLayer, 'x' | 'y' | 'w' | 'h' | 'fit' | 'hAlign' | 'vAlign'>) {
+// ---- photo analysis (for fit: 'smart') ----
+export interface ImageInfo {
+  /** the border is one plain colour (or transparent) → a packshot */
+  plain: boolean;
+  transparent: boolean;
+  bg: [number, number, number];
+  /** bounding box of the actual product inside the photo, in image pixels */
+  box: { x: number; y: number; w: number; h: number };
+}
+type CanvasFactory = (w: number, h: number) => { getContext(t: '2d'): any };
+let makeCanvas: CanvasFactory | null = null;
+/** browser/server register how to create a scratch canvas (needed to read pixels) */
+export function setCanvasFactory(f: CanvasFactory) {
+  makeCanvas = f;
+}
+const infoCache = new WeakMap<object, ImageInfo>();
+
+export function analyzeImage(img: Img): ImageInfo | null {
+  if (!img || typeof img !== 'object') return null;
+  const hit = infoCache.get(img);
+  if (hit) return hit;
   const iw = img.width || img.naturalWidth;
   const ih = img.height || img.naturalHeight;
-  if (!iw || !ih) return;
+  if (!iw || !ih || !makeCanvas) return null;
+  const k = Math.min(1, 160 / Math.max(iw, ih));
+  const w = Math.max(8, Math.round(iw * k));
+  const h = Math.max(8, Math.round(ih * k));
+  let data: Uint8ClampedArray;
+  try {
+    const c = makeCanvas(w, h);
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, w, h);
+    data = g.getImageData(0, 0, w, h).data;
+  } catch {
+    return null; // tainted/unsupported image
+  }
+  const px = (x: number, y: number) => (y * w + x) * 4;
+  // border ring, 2 px
+  const ring: number[] = [];
+  for (let x = 0; x < w; x++) for (const y of [0, 1, h - 2, h - 1]) ring.push(px(x, y));
+  for (let y = 2; y < h - 2; y++) for (const x of [0, 1, w - 2, w - 1]) ring.push(px(x, y));
+  const transparentN = ring.filter((i) => data[i + 3] < 24).length;
+  const transparent = transparentN / ring.length > 0.9;
+  const opaque = ring.filter((i) => data[i + 3] >= 24);
+  const med = (ch: number) => {
+    const v = opaque.map((i) => data[i + ch]).sort((a, b) => a - b);
+    return v.length ? v[v.length >> 1] : 255;
+  };
+  const bg: [number, number, number] = [med(0), med(1), med(2)];
+  const dist = (i: number) => Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]);
+  const plainN = transparent ? transparentN : opaque.filter((i) => dist(i) < 36).length;
+  const plain = transparent || plainN / ring.length > 0.88;
+  // product bounding box: pixels clearly different from the background
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  if (plain) {
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = px(x, y);
+        const fg = transparent ? data[i + 3] >= 40 : data[i + 3] >= 40 && dist(i) >= 48;
+        if (fg) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+  }
+  let box = { x: 0, y: 0, w: iw, h: ih };
+  if (plain && x1 >= x0 && y1 >= y0) {
+    const s = 1 / k;
+    const bx = Math.max(0, (x0 - 1) * s);
+    const by = Math.max(0, (y0 - 1) * s);
+    box = { x: bx, y: by, w: Math.min(iw, (x1 + 2) * s) - bx, h: Math.min(ih, (y1 + 2) * s) - by };
+    // a "product" covering almost everything is really a lifestyle/full-bleed shot
+    if (box.w * box.h > 0.92 * iw * ih) box = { x: 0, y: 0, w: iw, h: ih };
+  }
+  const info: ImageInfo = { plain: plain && x1 >= x0, transparent, bg, box };
+  infoCache.set(img, info);
+  return info;
+}
+
+type Src = { x: number; y: number; w: number; h: number };
+function drawImageFit(g: G, img: Img, l: Pick<ImageLayer, 'x' | 'y' | 'w' | 'h' | 'hAlign' | 'vAlign'> & { fit: 'contain' | 'cover' | 'fill' }, src?: Src, pad = 0) {
+  const iw0 = img.width || img.naturalWidth;
+  const ih0 = img.height || img.naturalHeight;
+  if (!iw0 || !ih0) return;
+  const s: Src = src ?? { x: 0, y: 0, w: iw0, h: ih0 };
+  const bx = l.x + pad, by = l.y + pad, bw = Math.max(1, l.w - pad * 2), bh = Math.max(1, l.h - pad * 2);
   if (l.fit === 'fill') {
-    g.drawImage(img, l.x, l.y, l.w, l.h);
+    g.drawImage(img, s.x, s.y, s.w, s.h, bx, by, bw, bh);
     return;
   }
-  const scale = l.fit === 'cover' ? Math.max(l.w / iw, l.h / ih) : Math.min(l.w / iw, l.h / ih);
-  const dw = iw * scale;
-  const dh = ih * scale;
-  const dx = l.x + (l.hAlign === 'left' ? 0 : l.hAlign === 'right' ? l.w - dw : (l.w - dw) / 2);
-  const dy = l.y + (l.vAlign === 'top' ? 0 : l.vAlign === 'bottom' ? l.h - dh : (l.h - dh) / 2);
+  const scale = l.fit === 'cover' ? Math.max(bw / s.w, bh / s.h) : Math.min(bw / s.w, bh / s.h);
+  const dw = s.w * scale;
+  const dh = s.h * scale;
+  const dx = bx + (l.hAlign === 'left' ? 0 : l.hAlign === 'right' ? bw - dw : (bw - dw) / 2);
+  const dy = by + (l.vAlign === 'top' ? 0 : l.vAlign === 'bottom' ? bh - dh : (bh - dh) / 2);
   if (l.fit === 'cover') {
     g.save();
     g.beginPath();
     g.rect(l.x, l.y, l.w, l.h);
     g.clip();
-    g.drawImage(img, dx, dy, dw, dh);
+    g.drawImage(img, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
     g.restore();
-  } else g.drawImage(img, dx, dy, dw, dh);
+  } else g.drawImage(img, s.x, s.y, s.w, s.h, dx, dy, dw, dh);
+}
+
+export const DEFAULT_SMART: SmartFit = { pad: 8, bg: 'card' };
+
+function drawPhoto(g: G, l: ImageLayer, img: Img) {
+  if (l.fit !== 'smart') return drawImageFit(g, img, l as ImageLayer & { fit: 'contain' | 'cover' | 'fill' });
+  const info = analyzeImage(img);
+  if (!info || !info.plain) return drawImageFit(g, img, { ...l, fit: 'cover' }); // lifestyle: fill the frame
+  const sm = { ...DEFAULT_SMART, ...(l.smart ?? {}) };
+  const pad = (Math.min(l.w, l.h) * sm.pad) / 100;
+  if (info.transparent) return drawImageFit(g, img, { ...l, fit: 'contain' }, info.box, pad);
+  const light = info.bg[0] + info.bg[1] + info.bg[2] >= 3 * 246; // only near-white dissolves cleanly
+  if (sm.bg === 'blend' && light) {
+    const prev = g.globalCompositeOperation;
+    g.globalCompositeOperation = 'multiply';
+    drawImageFit(g, img, { ...l, fit: 'contain' }, info.box, pad);
+    g.globalCompositeOperation = prev;
+    return;
+  }
+  // seamless card: paint the frame in the photo's own background colour, product fitted inside
+  const sc = g.shadowColor;
+  g.fillStyle = `rgb(${info.bg[0]},${info.bg[1]},${info.bg[2]})`;
+  g.fillRect(l.x, l.y, l.w, l.h);
+  g.shadowColor = 'transparent';
+  drawImageFit(g, img, { ...l, fit: 'contain' }, info.box, pad);
+  g.shadowColor = sc;
 }
 
 function drawImageLayer(g: G, l: ImageLayer, img: Img | undefined) {
@@ -399,9 +509,9 @@ function drawImageLayer(g: G, l: ImageLayer, img: Img | undefined) {
     g.save();
     roundRectPath(g, l.x, l.y, l.w, l.h, l.radius);
     g.clip();
-    drawImageFit(g, img, l);
+    drawPhoto(g, l, img);
     g.restore();
-  } else drawImageFit(g, img, l);
+  } else drawPhoto(g, l, img);
   if (l.stroke && l.stroke.width > 0) {
     g.shadowColor = 'transparent';
     g.strokeStyle = l.stroke.color;
