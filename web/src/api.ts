@@ -29,9 +29,10 @@ export const api = {
   del: <T = any>(u: string) => req<T>('DELETE', u),
 };
 
-export function imgProxy(url: string): string {
+/** remote images go through our proxy; `max` asks for a downscaled copy (longest side, px) */
+export function imgProxy(url: string, max?: number): string {
   if (url.startsWith('/')) return url;
-  return `/api/img?url=${encodeURIComponent(url)}`;
+  return `/api/img?url=${encodeURIComponent(url)}${max ? `&max=${max}` : ''}`;
 }
 
 export function timeAgo(iso?: string | null): string {

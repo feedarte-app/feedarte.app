@@ -9,6 +9,7 @@ import { resolveDesign, resolvedFingerprint } from '../../shared/render';
 import type { ProductData } from '../../shared/types';
 import { DEFAULT_OUTPUT } from '../db/schema';
 import { renderPool } from './pool';
+import { fontsUsedBy, projectFonts } from '../fonts';
 import type { RenderResult } from './engine';
 import * as storage from '../storage';
 import { OutputWriter, type OutputItem } from './output';
@@ -34,11 +35,12 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   const started = Date.now();
   await db.update(schema.designs).set({ renderStatus: 'rendering', renderProgress: 0, renderError: null }).where(eq(schema.designs.id, designId));
 
-  const [proj] = await sql<{ logo_maps: any }[]>`select p.logo_maps from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
+  const [proj] = await sql<{ id: string; logo_maps: any }[]>`select p.id, p.logo_maps from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
   const logoMaps = proj?.logo_maps ?? {};
+  const fonts = proj ? fontsUsedBy(doc, await projectFonts(proj.id)) : [];
   const prefix = `r/${designId}`;
   const existing = new Set((await storage.list(prefix)).map((f) => f.name));
-  const docHash = crypto.createHash('sha1').update(JSON.stringify([doc, ext, out.quality])).digest('hex');
+  const docHash = crypto.createHash('sha1').update(JSON.stringify([doc, ext, out.quality, fonts.map((f) => f.key)])).digest('hex');
   const [{ count: total }] = await sql<{ count: number }[]>`select count(*)::int as count from products where feed_id = ${design.feedId}`;
 
   const used = new Set<string>();
@@ -97,7 +99,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
         }
         return;
       }
-      p = renderPool.run({ resolved: t.resolved, ext, quality: out.quality, key: `${prefix}/${t.name}` }).then((r) => {
+      p = renderPool.run({ resolved: t.resolved, ext, quality: out.quality, key: `${prefix}/${t.name}`, fonts }).then((r) => {
         if (r.ok) {
           existing.add(t.name);
           rendered++;

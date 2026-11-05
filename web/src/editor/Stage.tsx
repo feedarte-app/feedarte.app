@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
 import { drawDesign, effectiveBox, type ResolvedDesign } from '../../../src/shared/render';
-import { loadFonts, loadImages, resolveFor } from './browserRender';
+import { ensureDocFonts, loadImages, resolveFor } from './browserRender';
 
 type Box = { x: number; y: number; w: number; h: number };
 type Guide = { axis: 'x' | 'y'; pos: number };
 
 interface Props {
+  /** anything whose change must trigger a redraw (e.g. uploaded fonts) */
+  renderKey?: unknown;
   doc: DesignDoc;
   product: ProductData | null;
   zoom: number;
@@ -24,18 +26,21 @@ interface Props {
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = (typeof HANDLES)[number];
 
-export function Stage({ doc, product, zoom, ghost, maps, selectedIds, onPick, onChangeLayer, onChangeLayers, onGestureEnd, onDoubleClick }: Props) {
+export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds, onPick, onChangeLayer, onChangeLayers, onGestureEnd, onDoubleClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resolved, setResolved] = useState<ResolvedDesign | null>(null);
   const [boxes, setBoxes] = useState<Record<string, Box>>({});
   const [guides, setGuides] = useState<Guide[]>([]);
   const seq = useRef(0);
+  const [loading, setLoading] = useState(false);
 
   // render
   useEffect(() => {
     const my = ++seq.current;
+    // only show "loading" when it actually takes a moment (cached photos draw instantly)
+    const slow = setTimeout(() => my === seq.current && setLoading(true), 250);
     (async () => {
-      await loadFonts();
+      await ensureDocFonts(doc);
       const r = resolveFor(doc, product, maps);
       const images = await loadImages(r, ghost);
       if (my !== seq.current) return;
@@ -56,8 +61,11 @@ export function Stage({ doc, product, zoom, ghost, maps, selectedIds, onPick, on
       g.restore();
       setBoxes(b);
       setResolved(r);
-    })();
-  }, [doc, product, zoom, ghost, maps]);
+    })().finally(() => {
+      clearTimeout(slow);
+      if (my === seq.current) setLoading(false);
+    });
+  }, [doc, product, zoom, ghost, maps, renderKey]);
 
   const selected = selectedIds.length === 1 ? doc.layers.find((l) => l.id === selectedIds[0]) ?? null : null;
   const multi = selectedIds.length > 1 ? doc.layers.filter((l) => selectedIds.includes(l.id)) : [];
@@ -208,6 +216,11 @@ export function Stage({ doc, product, zoom, ghost, maps, selectedIds, onPick, on
   return (
     <div className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onPick(null, false)}>
       <canvas ref={canvasRef} style={{ width: W, height: H, display: 'block' }} />
+      {loading && (
+        <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-medium text-ink-600 shadow">
+          <span className="w-3 h-3 rounded-full border-2 border-ink-300 border-t-brand-500 animate-spin" /> Завантаження фото
+        </div>
+      )}
       <div className="absolute inset-0">
         {hitLayers.map(({ layer: l }) => {
           const b = boxes[l.id] ?? l;

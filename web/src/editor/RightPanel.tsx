@@ -2,24 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Copy, Trash2, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, Italic, Minus, Info, FolderOpen, Ungroup, Group as GroupIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
 } from 'lucide-react';
-import type { DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
+import type { CustomFont, DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
 import { LogoLibrary } from './LogoLibrary';
-import { FONTS } from '../../../src/shared/fonts';
+import { textMinSize } from '../../../src/shared/render';
+import { FontPicker, weightsFor } from './FontPicker';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
 import { ColorInput, NumberInput, Row, Section, Seg, Toggle } from './controls';
 import { ConditionEditor } from './ConditionEditor';
 
-const WEIGHTS = [
-  [100, 'Thin (100)'],
-  [200, 'Extra Light (200)'],
-  [300, 'Light (300)'],
-  [400, 'Звичайний (400)'],
-  [500, 'Medium (500)'],
-  [600, 'Semi Bold (600)'],
-  [700, 'Жирний (700)'],
-  [800, 'Extra Bold (800)'],
-  [900, 'Black (900)'],
-] as const;
 
 interface Props {
   doc: DesignDoc;
@@ -42,6 +32,8 @@ interface Props {
   moveSelection: (patches: { id: string; patch: Partial<Layer> }[]) => void;
   projectId: string;
   onLogosChanged: () => void;
+  fonts: CustomFont[];
+  onFontsChanged: (list: CustomFont[]) => void;
 }
 
 export function RightPanel(p: Props) {
@@ -162,7 +154,7 @@ function FieldInsert({ fields, onPick }: { fields: FeedField[]; onPick: (key: st
   );
 }
 
-function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplicate, onDelete, onOrder, parentGroup, onSelectGroup, projectId, onLogosChanged }: Props & { layer: Layer }) {
+function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplicate, onDelete, onOrder, parentGroup, onSelectGroup, projectId, onLogosChanged, fonts, onFontsChanged }: Props & { layer: Layer }) {
   const key = (k: string) => `${k}:${layer.id}`;
   return (
     <div>
@@ -184,7 +176,7 @@ function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplic
           <button className="ml-auto underline" onClick={() => onSelectGroup(parentGroup.id)}>вибрати групу</button>
         </div>
       )}
-      {layer.type === 'image' && <ImageSourceProps layer={layer} fields={fields} setLayer={setLayer} projectId={projectId} onLogosChanged={onLogosChanged} />}
+      {layer.type === 'image' && <ImageSourceProps layer={layer} fields={fields} setLayer={setLayer} projectId={projectId} onLogosChanged={onLogosChanged} fonts={fonts} onFontsChanged={onFontsChanged} />}
 
       <Section title="Загальне">
         <Row label="Позиція">
@@ -223,7 +215,7 @@ function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplic
         <ConditionEditor value={layer.condition} onChange={(c) => setLayer({ condition: c })} fields={fields} />
       </Section>
 
-      {layer.type === 'text' && <TextStyle layer={layer} setLayer={setLayer} />}
+      {layer.type === 'text' && <TextStyle layer={layer} setLayer={setLayer} projectId={projectId} fonts={fonts} onFontsChanged={onFontsChanged} />}
       {layer.type === 'image' && <ImageStyle layer={layer} setLayer={setLayer} />}
       {layer.type === 'shape' && <ShapeStyle layer={layer} setLayer={setLayer} />}
       {layer.type === 'icon' && <IconStyle layer={layer} setLayer={setLayer} />}
@@ -276,26 +268,44 @@ function TextContent({ layer, fields, product, doc, focusText, setLayer }: { lay
         <NumberInput value={layer.maxLines} min={0} max={20} onChange={(v) => setLayer({ maxLines: v })} />
       </Row>
       <Toggle label="Зменшувати шрифт, щоб вміститись" checked={layer.autoFit} onChange={(v) => setLayer({ autoFit: v })} />
+      {layer.autoFit && (
+        <>
+          <Row label="Не менше ніж, px">
+            <NumberInput value={textMinSize(layer)} min={6} max={layer.size} onChange={(v) => setLayer({ minSize: v })} />
+          </Row>
+          <p className="text-[11px] text-ink-500 leading-snug -mt-1">
+            Шрифт зменшиться лише настільки, щоб слова не розривались і текст влазив у рамку. Якщо й мінімального розміру замало — кінець обріжеться «…». Чим ближче мінімум до основного розміру, тим однаковіше виглядають картки.
+          </p>
+        </>
+      )}
       <Toggle label="Ширина за текстом (бейдж)" checked={layer.autoWidth} onChange={(v) => setLayer({ autoWidth: v })} />
+      {layer.autoWidth && <p className="text-[11px] text-ink-500 leading-snug -mt-1">Фон стискається під текст, а ширина рамки — максимум: довший текст переноситься всередині неї.</p>}
       <Toggle label="Ховати, якщо поля порожні" checked={layer.hideIfEmpty} onChange={(v) => setLayer({ hideIfEmpty: v })} />
     </Section>
   );
 }
 
-function TextStyle({ layer, setLayer }: { layer: TextLayer; setLayer: Props['setLayer'] }) {
-  const font = FONTS.find((f) => f.family === layer.font);
+function TextStyle({ layer, setLayer, projectId, fonts, onFontsChanged }: { layer: TextLayer; setLayer: Props['setLayer']; projectId: string; fonts: CustomFont[]; onFontsChanged: (l: CustomFont[]) => void }) {
+  const weights = weightsFor(layer.font, fonts);
   return (
     <>
       <Section title="Стиль тексту">
-        <select className="ed-input" value={layer.font} onChange={(e) => setLayer({ font: e.target.value })} style={{ fontFamily: layer.font }}>
-          {FONTS.map((f) => (
-            <option key={f.family} value={f.family}>{f.family}</option>
-          ))}
-        </select>
+        <FontPicker
+          value={layer.font}
+          projectId={projectId}
+          fonts={fonts}
+          onFontsChanged={onFontsChanged}
+          onChange={(font) => {
+            const ws = weightsFor(font, fonts).map(([w]) => w);
+            // keep the weight if the new family has it, else the closest one
+            const weight = ws.includes(layer.weight) ? layer.weight : ws.reduce((a, b) => (Math.abs(b - layer.weight) < Math.abs(a - layer.weight) ? b : a), ws[0]);
+            setLayer({ font, weight });
+          }}
+        />
         <div className="grid grid-cols-[80px_1fr] gap-1.5">
           <NumberInput value={layer.size} min={4} max={600} onChange={(v) => setLayer({ size: v })} suffix="px" />
           <select className="ed-input" value={layer.weight} onChange={(e) => setLayer({ weight: Number(e.target.value) })}>
-            {WEIGHTS.filter(([w]) => !font || (w >= font.weights[0] && w <= font.weights[1])).map(([w, l]) => (
+            {weights.map(([w, l]) => (
               <option key={w} value={w}>{l}</option>
             ))}
           </select>
@@ -386,7 +396,7 @@ function TextStyle({ layer, setLayer }: { layer: TextLayer; setLayer: Props['set
 
 const IMAGE_FIELD_HINT = ['image_link', 'additional_image_link'];
 
-function ImageSourceProps({ layer, fields, setLayer, projectId, onLogosChanged }: { layer: ImageLayer; fields: FeedField[]; setLayer: Props['setLayer']; projectId: string; onLogosChanged: () => void }) {
+function ImageSourceProps({ layer, fields, setLayer, projectId, onLogosChanged, fonts, onFontsChanged }: { layer: ImageLayer; fields: FeedField[]; setLayer: Props['setLayer']; projectId: string; onLogosChanged: () => void; fonts: CustomFont[]; onFontsChanged: (l: CustomFont[]) => void }) {
   const src = layer.source;
   const [lib, setLib] = useState(false);
   const imgFields = fields.filter((f) => IMAGE_FIELD_HINT.includes(f.key) || /image|picture|photo|logo/i.test(f.key) || /^https?:\/\/.*\.(jpe?g|png|webp|gif|svg)/i.test(f.sample));
@@ -454,15 +464,11 @@ function ImageSourceProps({ layer, fields, setLayer, projectId, onLogosChanged }
           {fb.mode === 'text' && (
             <>
               <p className="text-xs text-ink-500">Замість логотипа буде назва з поля <code>{src.field}</code>, вписана в рамку шару.</p>
-              <select className="ed-input" value={fb.font ?? 'Montserrat'} onChange={(e) => setFb({ font: e.target.value })}>
-                {FONTS.map((f) => (
-                  <option key={f.family} value={f.family}>{f.family}</option>
-                ))}
-              </select>
+              <FontPicker value={fb.font ?? 'Montserrat'} onChange={(font) => setFb({ font })} projectId={projectId} fonts={fonts} onFontsChanged={onFontsChanged} />
               <div className="grid grid-cols-[1fr_96px] gap-1.5">
                 <ColorInput value={fb.color ?? '#111111'} onChange={(v) => setFb({ color: v })} />
                 <select className="ed-input" value={fb.weight ?? 800} onChange={(e) => setFb({ weight: Number(e.target.value) })}>
-                  {[400, 500, 600, 700, 800, 900].map((w) => (
+                  {weightsFor(fb.font ?? 'Montserrat', fonts).map(([w]) => (
                     <option key={w} value={w}>{w}</option>
                   ))}
                 </select>

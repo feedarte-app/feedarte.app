@@ -243,3 +243,24 @@ export const projectTransfers = pgTable(
     uniqueIndex('project_transfers_one_pending_uq').on(t.projectId).where(sql`status = 'pending'`),
   ],
 );
+
+/** Fonts uploaded into a project. All files of one family share `cssFamily` (unique internal name). */
+export const fonts = pgTable(
+  'fonts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    family: text('family').notNull(), // name shown to the user
+    cssFamily: text('css_family').notNull(), // internal family used in designs, e.g. "cf_3a9c01d2"
+    subfamily: text('subfamily').notNull().default('Regular'),
+    weight: integer('weight').notNull().default(400),
+    weightMax: integer('weight_max'), // variable fonts: wght axis max (weight = min)
+    italic: boolean('italic').notNull().default(false),
+    key: text('key').notNull(),
+    size: integer('size').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('fonts_project_idx').on(t.projectId)],
+);

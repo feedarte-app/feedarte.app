@@ -4,7 +4,7 @@ export interface FontDef {
   family: string;
   file: string;
   italicFile?: string;
-  category: 'sans' | 'serif' | 'display' | 'condensed';
+  category: 'sans' | 'serif' | 'display' | 'condensed' | 'script';
   weights: [number, number]; // variable range
 }
 
@@ -28,4 +28,35 @@ export const FONTS: FontDef[] = [
   { family: 'Playfair Display', file: 'PlayfairDisplay.ttf', italicFile: 'PlayfairDisplay-Italic.ttf', category: 'serif', weights: [400, 900] },
   { family: 'Lora', file: 'Lora.ttf', category: 'serif', weights: [400, 700] },
   { family: 'Prata', file: 'Prata.ttf', category: 'serif', weights: [400, 400] },
+  // added 2026-11
+  { family: 'Mulish', file: 'Mulish.ttf', category: 'sans', weights: [200, 1000] },
+  { family: 'Source Sans 3', file: 'SourceSans3.ttf', category: 'sans', weights: [200, 900] },
+  { family: 'IBM Plex Sans', file: 'IBMPlexSans.ttf', category: 'sans', weights: [100, 700] },
+  { family: 'Noto Sans', file: 'NotoSans.ttf', category: 'sans', weights: [100, 900] },
+  { family: 'Commissioner', file: 'Commissioner.ttf', category: 'sans', weights: [100, 900] },
+  { family: 'Geologica', file: 'Geologica.ttf', category: 'sans', weights: [100, 900] },
+  { family: 'Wix Madefor Display', file: 'WixMadeforDisplay.ttf', category: 'sans', weights: [400, 800] },
+  { family: 'Philosopher', file: 'Philosopher.ttf', category: 'sans', weights: [400, 400] },
+  { family: 'Cormorant', file: 'Cormorant.ttf', category: 'serif', weights: [300, 700] },
+  { family: 'Cormorant Garamond', file: 'CormorantGaramond.ttf', category: 'serif', weights: [300, 700] },
+  { family: 'Noto Serif', file: 'NotoSerif.ttf', category: 'serif', weights: [100, 900] },
+  { family: 'Literata', file: 'Literata.ttf', category: 'serif', weights: [200, 900] },
+  { family: 'Alegreya', file: 'Alegreya.ttf', category: 'serif', weights: [400, 900] },
+  { family: 'Forum', file: 'Forum.ttf', category: 'serif', weights: [400, 400] },
+  { family: 'Yeseva One', file: 'YesevaOne.ttf', category: 'display', weights: [400, 400] },
+  { family: 'Kurale', file: 'Kurale.ttf', category: 'serif', weights: [400, 400] },
+  { family: 'Lobster', file: 'Lobster.ttf', category: 'script', weights: [400, 400] },
+  { family: 'Pacifico', file: 'Pacifico.ttf', category: 'script', weights: [400, 400] },
+  { family: 'Great Vibes', file: 'GreatVibes.ttf', category: 'script', weights: [400, 400] },
+  { family: 'Bad Script', file: 'BadScript.ttf', category: 'script', weights: [400, 400] },
+  { family: 'Caveat', file: 'Caveat.ttf', category: 'script', weights: [400, 700] },
+  { family: 'Amatic SC', file: 'AmaticSC.ttf', category: 'script', weights: [400, 400] },
 ];
+
+export const FONT_CATEGORIES: Record<FontDef['category'], string> = {
+  sans: 'Без засічок',
+  serif: 'З засічками',
+  display: 'Акцентні',
+  condensed: 'Вузькі',
+  script: 'Рукописні',
+};

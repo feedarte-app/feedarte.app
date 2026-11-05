@@ -164,18 +164,36 @@ export interface TextLayout {
   boxW: number; // effective width (autoWidth)
 }
 
-function wrapLines(g: G, text: string, maxW: number, ls: number): string[] {
+/**
+ * Word wrap. Lines may break at spaces and right after a hyphen/dash/slash ("Спідниця-|шорти").
+ * A word is cut by characters only if it can't fit a line on its own — `broken` reports that,
+ * so auto-fit can shrink the font instead of splitting words.
+ */
+function wrapLines(g: G, text: string, maxW: number, ls: number): { lines: string[]; broken: boolean } {
   const out: string[] = [];
+  let broken = false;
   for (const para of text.split('\n')) {
-    const words = para.split(/(\s+)/).filter((w) => w.length);
+    // tokens: whitespace runs, and word pieces ending after a hyphen
+    const tokens: string[] = [];
+    for (const part of para.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) tokens.push(part);
+      else tokens.push(...part.split(/(?<=[^\s][-‐–—\/])(?=[^\s-‐–—\/])/));
+    }
     let line = '';
-    for (const word of words) {
-      const cand = line + word;
-      if (!line || measure(g, cand.trimEnd(), ls) <= maxW) {
-        if (!line && measure(g, word, ls) > maxW && word.trim()) {
-          // break very long word by characters
+    for (const tok of tokens) {
+      const isSpace = /^\s+$/.test(tok);
+      if (isSpace) {
+        if (line) line += tok;
+        continue;
+      }
+      const cand = line + tok;
+      if (!line.trim() || measure(g, cand.trimEnd(), ls) <= maxW) {
+        if (!line.trim() && measure(g, tok, ls) > maxW) {
+          // a single piece wider than the line: last resort — cut by characters
+          broken = true;
           let chunk = '';
-          for (const ch of word) {
+          for (const ch of tok) {
             if (chunk && measure(g, chunk + ch, ls) > maxW) {
               out.push(chunk);
               chunk = ch;
@@ -185,55 +203,70 @@ function wrapLines(g: G, text: string, maxW: number, ls: number): string[] {
         } else line = cand;
       } else {
         out.push(line.trimEnd());
-        line = word.trimStart();
+        line = tok;
       }
     }
     out.push(line.trimEnd());
   }
-  return out;
+  return { lines: out, broken };
+}
+
+export function textMinSize(l: TextLayer): number {
+  return Math.max(6, Math.min(l.size, Math.round(l.minSize ?? l.size * 0.5)));
 }
 
 export function layoutText(g: G, l: TextLayer, text: string): TextLayout {
   const padX = l.bg ? l.bg.padX : 0;
   const padY = l.bg ? l.bg.padY : 0;
   const ls = l.letterSpacing || 0;
-  let size = l.size;
-  const minSize = Math.max(6, Math.round(l.size * 0.3));
-  for (;;) {
+  const maxW = Math.max(1, l.w - padX * 2);
+  const innerH = l.h - padY * 2 + 0.5;
+
+  const attempt = (size: number) => {
     g.font = fontString(l, size);
     const lineH = (size * (l.lineHeight || 120)) / 100;
-    const m = g.measureText('HgЙ');
-    const asc = m.fontBoundingBoxAscent ?? size * 0.8;
-    const desc = m.fontBoundingBoxDescent ?? size * 0.2;
-    let lines: string[];
-    let boxW: number;
-    if (l.autoWidth) {
-      lines = text.split('\n');
-      boxW = Math.max(...lines.map((s) => measure(g, s, ls))) + padX * 2;
-    } else {
-      boxW = l.w;
-      lines = wrapLines(g, text, Math.max(1, l.w - padX * 2), ls);
+    const { lines, broken } = wrapLines(g, text, maxW, ls);
+    const tooMany = l.maxLines > 0 && lines.length > l.maxLines;
+    const shown = tooMany ? l.maxLines : lines.length;
+    const fits = !broken && !tooMany && shown * lineH <= innerH;
+    return { size, lineH, lines, fits, tooMany };
+  };
+
+  let best = attempt(l.size);
+  if (l.autoFit && !best.fits) {
+    // largest size (integer px) in [min, size) that fits — binary search, monotone in practice
+    let lo = textMinSize(l);
+    let hi = l.size - 1;
+    let found: ReturnType<typeof attempt> | null = null;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const a = attempt(mid);
+      if (a.fits) {
+        found = a;
+        lo = mid + 1;
+      } else hi = mid - 1;
     }
-    let truncated = false;
-    if (l.maxLines > 0 && lines.length > l.maxLines) {
-      truncated = true;
-    }
-    const fitsH = lines.length * lineH <= l.h - padY * 2 + 0.5;
-    const fitsW = l.autoWidth ? true : lines.every((s) => measure(g, s, ls) <= l.w - padX * 2 + 0.5);
-    if (l.autoFit && (!fitsH || !fitsW || truncated) && size > minSize) {
-      size = Math.max(minSize, Math.floor(size * 0.94));
-      continue;
-    }
-    if (truncated) {
-      lines = lines.slice(0, l.maxLines);
-      const maxW = l.w - padX * 2;
-      let last = lines[lines.length - 1];
-      while (last && measure(g, last + '…', ls) > maxW) last = last.slice(0, -1);
-      lines[lines.length - 1] = last.trimEnd() + '…';
-    }
-    const widths = lines.map((s) => measure(g, s, ls));
-    return { size, lines, widths, lineH, asc, desc, boxW };
+    best = found ?? attempt(textMinSize(l));
   }
+
+  g.font = fontString(l, best.size);
+  const m = g.measureText('HgЙ');
+  const asc = m.fontBoundingBoxAscent ?? best.size * 0.8;
+  const desc = m.fontBoundingBoxDescent ?? best.size * 0.2;
+  let lines = best.lines;
+  // cut what doesn't fit (max lines, or box height) with an ellipsis
+  const byHeight = Math.max(1, Math.floor(innerH / best.lineH));
+  const limit = Math.min(l.maxLines > 0 ? l.maxLines : Infinity, l.autoFit || l.maxLines > 0 ? byHeight : Infinity);
+  if (lines.length > limit) {
+    lines = lines.slice(0, limit);
+    let last = lines[lines.length - 1];
+    while (last && measure(g, last + '…', ls) > maxW) last = last.slice(0, -1);
+    lines[lines.length - 1] = last.replace(/[\s,.;:–—-]+$/, '') + '…';
+  }
+  const widths = lines.map((s) => measure(g, s, ls));
+  // auto width: the box hugs the text, never wider than the layer's frame
+  const boxW = l.autoWidth ? Math.min(l.w, Math.max(0, ...widths) + padX * 2) : l.w;
+  return { size: best.size, lines, widths, lineH: best.lineH, asc, desc, boxW };
 }
 
 /** Box actually occupied by the layer (autoWidth text changes it). */

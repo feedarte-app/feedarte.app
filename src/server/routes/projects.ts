@@ -1,3 +1,4 @@
+import { projectFonts } from '../fonts';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import { and, desc, eq, sql as dsql } from 'drizzle-orm';
@@ -237,6 +238,7 @@ export async function projectRoutes(app: FastifyInstance) {
       feed: { id: feed.id, name: feed.name, fields: feed.fields, productCount: feed.productCount, status: feed.status },
       project: { id: project.id, name: project.name },
       logoMaps: project.logoMaps ?? {},
+      fonts: await projectFonts(project.id),
     };
   });
 

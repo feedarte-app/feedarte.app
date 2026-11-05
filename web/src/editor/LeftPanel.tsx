@@ -91,7 +91,7 @@ function FieldCard({ label, value, onAdd, image }: { label: string; value: strin
   return (
     <button onClick={onAdd} className="text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] p-3 relative min-h-[76px] flex flex-col group transition-all" title="Додати на полотно">
       {image ? (
-        <img src={imgProxy(image)} className="w-full h-20 object-contain rounded-xl bg-white" alt="" loading="lazy" />
+        <img src={imgProxy(image, 320)} className="w-full h-20 object-contain rounded-xl bg-white" alt="" loading="lazy" />
       ) : (
         <>
           <span className="text-[13px] font-semibold text-ink-900 leading-tight">{label}</span>

@@ -25,6 +25,26 @@ export function registerFonts() {
   fontsReady = true;
 }
 
+/** fonts uploaded into projects: registered lazily per process/thread, by storage key */
+export interface FontRef {
+  cssFamily: string;
+  key: string;
+}
+const customRegistered = new Set<string>();
+export function ensureFonts(list: FontRef[] | undefined) {
+  if (!list?.length) return;
+  for (const f of list) {
+    if (customRegistered.has(f.key)) continue;
+    const p = path.join(publicDir, f.key);
+    try {
+      if (fs.existsSync(p)) GlobalFonts.registerFromPath(p, f.cssFamily);
+    } catch {
+      /* broken file: text falls back to Inter */
+    }
+    customRegistered.add(f.key);
+  }
+}
+
 const require_ = createRequire(import.meta.url);
 let iconDir: string | null = null;
 function iconsPath() {
@@ -114,7 +134,8 @@ export async function renderResolved(r: ResolvedDesign, format: 'jpg' | 'png', q
   return { buf, missing };
 }
 
-export async function renderProduct(doc: DesignDoc, data: ProductData, format: 'jpg' | 'png' = 'jpg', maps?: import('../../shared/types').LogoMaps) {
+export async function renderProduct(doc: DesignDoc, data: ProductData, format: 'jpg' | 'png' = 'jpg', maps?: import('../../shared/types').LogoMaps, fonts?: FontRef[]) {
+  ensureFonts(fonts);
   const ctx = new ProductContext(data, doc.format);
   return renderResolved(resolveDesign(doc, ctx, maps), format);
 }

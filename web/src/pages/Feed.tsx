@@ -579,7 +579,7 @@ function ProductsTab({ feedId, fields }: { feedId: string; fields: FeedField[] }
               {res.products.map((p: any) => (
                 <tr key={p.id} className="border-b border-ink-100 hover:bg-ink-50 cursor-pointer" onClick={() => setOpen(p)}>
                   <td className="p-2 pl-3">
-                    {first(p.data.image_link) ? <img src={imgProxy(first(p.data.image_link))} className="w-10 h-10 rounded object-cover bg-ink-100" loading="lazy" alt="" /> : <div className="w-10 h-10 rounded bg-ink-100" />}
+                    {first(p.data.image_link) ? <img src={imgProxy(first(p.data.image_link), 160)} className="w-10 h-10 rounded object-cover bg-ink-100" loading="lazy" alt="" /> : <div className="w-10 h-10 rounded bg-ink-100" />}
                   </td>
                   <td className="p-3 font-mono text-xs">{p.externalId}</td>
                   <td className="p-3">{p.title}</td>

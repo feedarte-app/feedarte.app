@@ -11,7 +11,8 @@ import { Stage } from './Stage';
 import { LeftPanel, LeftRail, type LeftTab } from './LeftPanel';
 import { ContextMenu, type MenuState, type LayerActions } from './ContextMenu';
 import { RightPanel } from './RightPanel';
-import { loadFonts } from './browserRender';
+import { ensureDocFonts, loadImages, resolveFor, setCustomFonts } from './browserRender';
+import type { CustomFont } from '../../../src/shared/types';
 
 type ProductRow = { id: number; externalId: string; title: string; data: ProductData };
 
@@ -20,8 +21,13 @@ export function EditorPage() {
   const nav = useNavigate();
   const [meta, setMeta] = useState<any>(null);
   useEffect(() => {
-    Promise.all([api.get(`/api/designs/${id}`), loadFonts()])
-      .then(([r]) => setMeta(r))
+    api
+      .get(`/api/designs/${id}`)
+      .then(async (r) => {
+        setCustomFonts(r.fonts ?? []);
+        await ensureDocFonts(r.design.draft);
+        setMeta(r);
+      })
       .catch(() => nav('/'));
   }, [id]);
   if (!meta)
@@ -45,6 +51,11 @@ function Editor({ meta }: { meta: any }) {
   const setSelectedId = useCallback((id: string | null) => setSel(id ? [id] : []), []);
   const [maps, setMaps] = useState<LogoMaps>(meta.logoMaps ?? {});
   const reloadMaps = useCallback(() => api.get(`/api/designs/${design.id}`).then((r) => setMaps(r.logoMaps ?? {})), []);
+  const [fonts, setFonts] = useState<CustomFont[]>(meta.fonts ?? []);
+  const onFontsChanged = useCallback((list: CustomFont[]) => {
+    setCustomFonts(list);
+    setFonts(list);
+  }, []);
   const [tab, setTab] = useState<LeftTab>('product');
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [ghost, setGhost] = useState(true);
@@ -74,6 +85,18 @@ function Editor({ meta }: { meta: any }) {
     return () => clearTimeout(t);
   }, [feed.id, filter, q]);
   const product = products[idx]?.data ?? null;
+
+  // warm up the next/previous products' photos so flipping through them is instant
+  useEffect(() => {
+    if (!products.length) return;
+    const t = setTimeout(() => {
+      for (const d of [1, 2, -1, 3]) {
+        const p = products[(idx + d + products.length) % products.length];
+        if (p) loadImages(resolveFor(docRef.current, p.data, maps), true);
+      }
+    }, 150);
+    return () => clearTimeout(t);
+  }, [idx, products, maps]);
 
   // fit zoom
   useEffect(() => {
@@ -577,6 +600,7 @@ function Editor({ meta }: { meta: any }) {
                   product={product}
                   zoom={z}
                   ghost={ghost}
+                  renderKey={fonts}
                   maps={maps}
                   selectedIds={sel}
                   onPick={pick}
@@ -644,6 +668,8 @@ function Editor({ meta }: { meta: any }) {
           setGroup={(gid, patch) => update((d) => patchGroup(d, gid, patch), `group:${gid}`)}
           moveSelection={(patches) => patchMany(patches)}
           projectId={meta.project.id}
+          fonts={fonts}
+          onFontsChanged={onFontsChanged}
           onLogosChanged={reloadMaps}
         />
       </div>

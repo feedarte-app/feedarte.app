@@ -22,6 +22,13 @@
       "when": 1793061428810,
       "tag": "0002_project_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793888199479,
+      "tag": "0003_fonts",
+      "breakpoints": true
     }
   ]
 }

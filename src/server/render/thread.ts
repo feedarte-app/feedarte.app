@@ -1,11 +1,12 @@
 // Render worker thread: draws creatives in parallel on all CPU cores.
 import { parentPort } from 'node:worker_threads';
-import { registerFonts, renderToStorage } from './engine';
+import { ensureFonts, registerFonts, renderToStorage, type FontRef } from './engine';
 import type { ResolvedDesign } from '../../shared/render';
 
 registerFonts();
-parentPort!.on('message', async (m: { id: number; resolved: ResolvedDesign; ext: 'jpg' | 'png'; quality: number; key: string }) => {
+parentPort!.on('message', async (m: { id: number; resolved: ResolvedDesign; ext: 'jpg' | 'png'; quality: number; key: string; fonts?: FontRef[] }) => {
   try {
+    ensureFonts(m.fonts);
     const result = await renderToStorage(m.resolved, m.ext, m.quality, m.key);
     parentPort!.postMessage({ id: m.id, result });
   } catch (e) {

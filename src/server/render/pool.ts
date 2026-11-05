@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import type { ResolvedDesign } from '../../shared/render';
-import { renderToStorage, type RenderResult } from './engine';
+import { ensureFonts, renderToStorage, type FontRef, type RenderResult } from './engine';
 import { log } from '../log';
 
-type Task = { resolved: ResolvedDesign; ext: 'jpg' | 'png'; quality: number; key: string };
+type Task = { resolved: ResolvedDesign; ext: 'jpg' | 'png'; quality: number; key: string; fonts?: FontRef[] };
 type Pending = { resolve: (r: RenderResult) => void; task: Task };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -88,7 +88,10 @@ class Pool {
 
   run(task: Task): Promise<RenderResult> {
     this.ensure();
-    if (this.disabled) return renderToStorage(task.resolved, task.ext, task.quality, task.key).catch((e) => ({ ok: false as const, reason: `Помилка рендеру: ${e instanceof Error ? e.message : e}` }));
+    if (this.disabled) {
+      ensureFonts(task.fonts);
+      return renderToStorage(task.resolved, task.ext, task.quality, task.key).catch((e) => ({ ok: false as const, reason: `Помилка рендеру: ${e instanceof Error ? e.message : e}` }));
+    }
     const id = ++this.seq;
     return new Promise<RenderResult>((resolve) => {
       this.pending.set(id, { resolve, task });

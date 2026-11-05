@@ -85,7 +85,9 @@ export interface TextLayer extends LayerBase {
   transform: 'none' | 'capitalize' | 'uppercase' | 'lowercase';
   maxLines: number; // 0 = unlimited
   autoFit: boolean; // shrink font to fit the box
-  autoWidth: boolean; // box width follows text width (badges)
+  /** smallest font size autoFit may use (px); below that the text is cut with an ellipsis. default 50% of size */
+  minSize?: number;
+  autoWidth: boolean; // box hugs the text (badges); the layer's width is the maximum
   hideIfEmpty: boolean; // hide when all referenced fields are empty
   bg?: { color: string; radius: number; padX: number; padY: number } | null;
 }
@@ -95,6 +97,18 @@ export type ImageSource =
   | { kind: 'url'; url: string }
   /** dynamic logo: picks an image from the project's logo library by the value of a feed field (e.g. brand) */
   | { kind: 'map'; field: string };
+
+/** a font uploaded into the project (one file = one weight/style) */
+export interface CustomFont {
+  id: string;
+  family: string; // display name
+  cssFamily: string; // what text layers store in `font`
+  weight: number;
+  weightMax: number | null;
+  italic: boolean;
+  url: string; // /a/<file>
+  key?: string;
+}
 
 /** project logo libraries: field → normalized value → image url */
 export type LogoMaps = Record<string, Record<string, string>>;
