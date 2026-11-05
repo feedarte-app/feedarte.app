@@ -7,6 +7,7 @@ import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/sh
 import { makeIcon, makeImage, makeShape, makeText, IF_DISCOUNT, makePriceBlock, makeDiscountBadge } from '../../../src/shared/layers';
 import { LogoLibrary } from './LogoLibrary';
 import type { LayerActions } from './ContextMenu';
+import { NicheChips, matchNiche, type NicheFilter } from '../NicheChips';
 import { membersOf, moveRelative } from './groups';
 import { api, imgProxy } from '../api';
 import { useToast } from '../ui';
@@ -156,7 +157,7 @@ function ProductTab({ doc, fields, product, addLayer }: Props) {
                 label=""
                 value=""
                 image={im.url}
-                onAdd={() => addLayer(makeImage({ name: im.idx ? `Фото ${im.idx + 1}` : 'Фото товару', source: { kind: 'field', field: im.key, index: im.idx }, ...center(doc, Math.round(doc.width * 0.6), Math.round(doc.width * 0.6)) }))}
+                onAdd={() => addLayer(makeImage({ name: im.idx ? `Фото ${im.idx + 1}` : 'Фото товару', source: { kind: 'field', field: im.key, index: im.idx }, fit: 'smart', smart: { pad: 6, bg: 'card' }, ...center(doc, Math.round(doc.width * 0.6), Math.round(doc.width * 0.6)) }))}
               />
             ))}
           </div>
@@ -662,7 +663,8 @@ function TemplatesTab({ doc, formatId, product, applyTemplate }: Props) {
   useEffect(() => {
     load();
   }, []);
-  const mine = list.filter((t) => t.formatId === formatId || (t.doc.width === doc.width && t.doc.height === doc.height));
+  const [niche, setNiche] = useState<NicheFilter>('all');
+  const mine = list.filter((t) => (t.formatId === formatId || (t.doc.width === doc.width && t.doc.height === doc.height)) && matchNiche(t, niche));
   return (
     <div>
       <Title hint="Застосування шаблону замінює поточний дизайн (можна скасувати через Ctrl+Z).">Шаблони</Title>
@@ -680,6 +682,9 @@ function TemplatesTab({ doc, formatId, product, applyTemplate }: Props) {
         >
           Зберегти
         </button>
+      </div>
+      <div className="px-4 pb-3">
+        <NicheChips value={niche} onChange={setNiche} hasMine={list.some((t) => !t.builtin)} compact />
       </div>
       <div className="px-4 grid grid-cols-2 gap-2 pb-4">
         {mine.map((t) => (

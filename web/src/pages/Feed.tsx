@@ -1,3 +1,4 @@
+import { NicheChips, matchNiche, type NicheFilter } from '../NicheChips';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -333,7 +334,8 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
       api.get('/api/integrations').then(setIntegrations);
     }
   }, [open]);
-  const list = useMemo(() => templates.filter((t) => t.formatId === formatId), [templates, formatId]);
+  const [niche, setNiche] = useState<NicheFilter>('all');
+  const list = useMemo(() => templates.filter((t) => t.formatId === formatId && matchNiche(t, niche)), [templates, formatId, niche]);
   const fmt = FORMATS.find((f) => f.id === formatId)!;
   return (
     <Modal open={open} onClose={onClose} title="Новий дизайн" width="max-w-4xl">
@@ -367,7 +369,8 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
           <button data-on={source === 'image'} onClick={() => setSource('image')}><ImageUp className="w-4 h-4 mr-1.5" />З картинки</button>
         </div>
         {source === 'template' && (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in space-y-3">
+          <NicheChips value={niche} onChange={setNiche} hasMine={templates.some((t) => !t.builtin)} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[42vh] overflow-y-auto p-0.5">
             <button onClick={() => setTpl('')} className={`rounded-2xl border p-2 flex flex-col items-center transition-all justify-center gap-2 min-h-40 ${tpl === '' ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
               <Plus className="w-6 h-6 text-ink-400" />
@@ -380,7 +383,8 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
                   <div className="bg-ink-100 rounded-xl p-1 w-full flex justify-center">
                     <DesignPreview doc={t.doc} product={sample} width={w} />
                   </div>
-                  <span className="text-[13px] text-center leading-tight">{t.name}</span>
+                  <span className="text-[13px] text-center leading-tight font-medium">{t.name}</span>
+                  {t.hint && <span className="text-[11px] text-center leading-snug text-ink-500 -mt-1">{t.hint}</span>}
                   {!t.builtin && <span className="chip bg-brand-50 text-brand-700">мій</span>}
                 </button>
               );

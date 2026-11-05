@@ -2,6 +2,7 @@
 // appear only for products with a discount (condition + hide-if-empty).
 import type { DesignDoc, Layer } from './types';
 import { DEFAULT_FORMAT } from './types';
+import { libraryTemplates, type Niche } from './templates-lib';
 import { IF_DISCOUNT, IF_NO_DISCOUNT, makeIcon, makeImage, makeShape, makeText } from './layers';
 
 export interface BuiltinTemplate {
@@ -9,6 +10,9 @@ export interface BuiltinTemplate {
   name: string;
   formatId: 'square' | 'portrait' | 'story' | 'landscape';
   doc: DesignDoc;
+  /** niches the design suits (see NICHES); empty = universal */
+  niches?: Niche[];
+  hint?: string;
 }
 
 function doc(w: number, h: number, bg: DesignDoc['background'], layers: Layer[]): DesignDoc {
@@ -140,6 +144,7 @@ let cache: BuiltinTemplate[] | null = null;
 export function builtinTemplates(): BuiltinTemplate[] {
   if (cache) return cache;
   cache = [
+    ...libraryTemplates(),
     { id: 'b-corner', name: 'Знижка в куті + переваги', formatId: 'square', doc: cornerSquare() },
     { id: 'b-minimal', name: 'Мінімал з бейджем', formatId: 'square', doc: minimalSquare() },
     { id: 'b-sale', name: 'Яскравий розпродаж', formatId: 'square', doc: saleSquare() },
