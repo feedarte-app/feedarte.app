@@ -101,6 +101,25 @@ async function main() {
       }
     };
     const s = read('status.json');
+    if ((req.query as any).queue) {
+      // operational diagnostics: queue history and render timings (ids only, no customer data)
+      const jobs = await sqlClient`
+        select id, type, status, priority, attempts, payload->>'designId' as design, payload->>'feedId' as feed,
+          created_at, started_at, finished_at,
+          extract(epoch from (coalesce(started_at, finished_at) - created_at))::int as wait_s,
+          extract(epoch from (finished_at - started_at))::int as run_s, left(last_error, 160) as error
+        from jobs where created_at > now() - interval '2 days' order by id desc limit 300`;
+      const designs = await sqlClient`
+        select d.id, d.feed_id, d.render_status, d.render_stats, d.updated_at,
+          (select count(*)::int from products p where p.feed_id = d.feed_id) as products
+        from designs d order by d.updated_at desc limit 50`;
+      const syncs = await sqlClient`
+        select feed_id, started_at, finished_at, status, stats, left(error, 160) as error
+        from sync_runs where started_at > now() - interval '1 day' order by id desc limit 100`;
+      const feeds = await sqlClient`select id, interval_minutes, enabled, status, next_sync_at from feeds`;
+      const workers = await sqlClient`select key, value from settings where key like 'worker:%'`;
+      return { version: env.appVersion, workerConcurrency: env.workerConcurrency, renderConcurrency: env.renderConcurrency, workers, feeds, jobs, designs, syncs };
+    }
     return { version: env.appVersion, deploy: s ? JSON.parse(s) : null, log: read('last-deploy.log') };
   });
 

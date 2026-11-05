@@ -31,7 +31,7 @@ export const workerId = `${os.hostname()}:${process.pid}`;
 
 export async function claim(types: JobType[]): Promise<Job | null> {
   const rows = await sql<Job[]>`
-    update jobs set status = 'running', locked_at = now(), locked_by = ${workerId}, attempts = attempts + 1
+    update jobs set status = 'running', locked_at = now(), started_at = now(), locked_by = ${workerId}, attempts = attempts + 1
     where id = (
       select j.id from jobs j
       where j.status = 'queued' and j.run_after <= now() and j.type = any(${types})

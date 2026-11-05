@@ -207,6 +207,7 @@ export const jobs = pgTable(
     maxAttempts: integer('max_attempts').notNull().default(3),
     runAfter: timestamp('run_after', { withTimezone: true }).notNull().defaultNow(),
     lockedAt: timestamp('locked_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
     lockedBy: text('locked_by'),
     lastError: text('last_error'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
