@@ -248,6 +248,9 @@ function Editor({ meta }: { meta: any }) {
   const selLayers = doc.layers.filter((l) => sel.includes(l.id));
 
   /** group-aware selection: first click selects the whole group, a second click picks the single layer */
+  const [safeZones, setSafeZones] = useState(() => {
+    try { return localStorage.getItem('fa_safe_zones') !== '0'; } catch { return true; }
+  });
   const pick = useCallback(
     (id: string | null, additive: boolean): string[] => {
       if (!id) {
@@ -595,6 +598,19 @@ function Editor({ meta }: { meta: any }) {
             <div className="min-h-full min-w-full flex items-center justify-center px-14 pt-14 pb-24" style={{ width: 'max-content', height: 'max-content' }}>
               <div className="relative" ref={stageBox}>
                 <div className="absolute -top-6 left-0 text-[11px] font-medium text-ink-500 bg-white/80 rounded-full px-2 py-0.5">{doc.width}×{doc.height}</div>
+                {doc.height > doc.width && (
+                  <button
+                    data-testid="safe-zones-toggle"
+                    className={`absolute -top-7 right-0 text-[11px] font-medium rounded-full px-2.5 py-0.5 border transition ${safeZones ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white/80 border-ink-200 text-ink-600 hover:border-ink-300'}`}
+                    title="Показати, що залишиться, якщо Meta обріже креатив по центру: до квадрата 1:1 (каруселі в стрічці) або до 4:5"
+                    onClick={() => setSafeZones((v) => {
+                      try { localStorage.setItem('fa_safe_zones', v ? '0' : '1'); } catch { /* ignore */ }
+                      return !v;
+                    })}
+                  >
+                    Зони обрізання {safeZones ? 'увімк.' : 'вимк.'}
+                  </button>
+                )}
                 <Stage
                   doc={doc}
                   product={product}
@@ -603,6 +619,7 @@ function Editor({ meta }: { meta: any }) {
                   renderKey={fonts}
                   maps={maps}
                   selectedIds={sel}
+                  safeZones={safeZones}
                   onPick={pick}
                   onChangeLayer={(lid, patch, key) => update((d) => patchLayer(d, lid, patch), key)}
                   onChangeLayers={patchMany}

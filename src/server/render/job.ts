@@ -7,7 +7,7 @@ import { env } from '../env';
 import { ProductContext, evalCondition } from '../../shared/fields';
 import { resolveDesign, resolvedFingerprint } from '../../shared/render';
 import type { ProductData } from '../../shared/types';
-import { DEFAULT_OUTPUT } from '../db/schema';
+import { DEFAULT_OUTPUT, type DesignOutputSettings } from '../db/schema';
 import { renderPool } from './pool';
 import { fontsUsedBy, projectFonts } from '../fonts';
 import type { RenderResult } from './engine';
@@ -74,6 +74,8 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     }
   }, 4000);
 
+  const dropped = out.variants === 'one_per_group' ? await variantDuplicates(design.feedId, out, doc.format) : new Set<number>();
+
   try {
   for (;;) {
     if (superseded) break;
@@ -84,6 +86,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
 
     const tasks: { idx: number; name: string; resolved: ReturnType<typeof resolveDesign> }[] = [];
     const pageItems: OutputItem[] = rows.map((row, idx) => {
+      if (dropped.has(row.id)) return { data: row.data, image: null, skip: true };
       const ctx = new ProductContext(row.data, doc.format);
       const include = evalCondition(out.filter, ctx);
       if (!include) return { data: row.data, image: null, skip: out.mode === 'only' };
@@ -189,4 +192,37 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     .where(eq(schema.designs.id, designId));
   log.info({ designId, ...stats }, 'design rendered');
   return stats;
+}
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] ?? '' : v ?? '').trim();
+const inStock = (d: ProductData) => /^(in[ _]?stock|available|preorder|pre[ _]order)$/i.test(one(d['availability']));
+
+/**
+ * Row ids to leave out so that only one variant per (item_group_id, color) remains.
+ * Keeps the first in-stock variant (feed order); if none is in stock, the first one.
+ * Only candidates that would be included anyway (filter / mode) compete, so the kept one actually appears.
+ */
+export async function variantDuplicates(feedId: string, out: DesignOutputSettings, format: ConstructorParameters<typeof ProductContext>[1]): Promise<Set<number>> {
+  const best = new Map<string, { id: number; stock: boolean }>();
+  const all: { id: number; key: string }[] = [];
+  let lastId = 0;
+  for (;;) {
+    const rows = await sql<{ id: number; data: ProductData }[]>`
+      select id, data from products where feed_id = ${feedId} and id > ${lastId} order by id limit ${PAGE}`;
+    if (!rows.length) break;
+    lastId = rows[rows.length - 1].id;
+    for (const r of rows) {
+      const g = one(r.data['item_group_id']);
+      if (!g) continue;
+      if (out.mode === 'only' && out.filter && !evalCondition(out.filter, new ProductContext(r.data, format))) continue;
+      const key = `${g}|${one(r.data['color']).toLowerCase()}`;
+      const stock = inStock(r.data);
+      all.push({ id: r.id, key });
+      const cur = best.get(key);
+      if (!cur || (stock && !cur.stock)) best.set(key, { id: r.id, stock });
+    }
+  }
+  const drop = new Set<number>();
+  for (const a of all) if (best.get(a.key)!.id !== a.id) drop.add(a.id);
+  return drop;
 }

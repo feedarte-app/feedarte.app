@@ -500,6 +500,18 @@ function OutputSettingsModal({ design, fields, onClose, onSaved }: { design: any
             </div>
           </div>
         )}
+        <div>
+          <div className="label">Розміри та інші варіанти товару</div>
+          <div className="seg">
+            <button data-testid="variants-all" data-on={(o.variants ?? 'all') === 'all'} onClick={() => setO({ ...o, variants: 'all' })}>Усі варіанти</button>
+            <button data-testid="variants-one" data-on={o.variants === 'one_per_group'} onClick={() => setO({ ...o, variants: 'one_per_group' })}>Один на групу</button>
+          </div>
+          <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
+            {o.variants === 'one_per_group'
+              ? 'З кожної групи (item_group_id) і кольору у фід потрапляє один варіант — перший, що є в наявності. Розміри S, M, L одного товару більше не показуватимуться в рекламі поруч. Для ремаркетингу краще лишити окремий фід з усіма варіантами: піксель передає ID конкретного розміру.'
+              : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
+          </p>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={o.keepOriginalAsAdditional} onChange={(e) => setO({ ...o, keepOriginalAsAdditional: e.target.checked })} />
           Додавати оригінальне фото в additional_image_link

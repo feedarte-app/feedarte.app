@@ -287,6 +287,7 @@ export async function projectRoutes(app: FastifyInstance) {
             filter: conditionSchema,
             mode: z.enum(['only', 'all']),
             keepOriginalAsAdditional: z.boolean(),
+            variants: z.enum(['all', 'one_per_group']),
             imageFormat: z.enum(['jpg', 'png']),
             quality: z.number().int().min(50).max(100),
           })

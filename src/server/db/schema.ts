@@ -107,6 +107,8 @@ export interface DesignOutputSettings {
   filter: Condition | null; // which products get the custom image
   mode: 'only' | 'all'; // only matching products, or all (non-matching keep original image)
   keepOriginalAsAdditional: boolean;
+  /** 'one_per_group': keep a single variant (prefer in stock) per item_group_id + color — removes size duplicates in ads */
+  variants?: 'all' | 'one_per_group';
   imageFormat: 'jpg' | 'png';
   quality: number;
 }
@@ -115,6 +117,7 @@ export const DEFAULT_OUTPUT: DesignOutputSettings = {
   filter: null,
   mode: 'all',
   keepOriginalAsAdditional: true,
+  variants: 'all',
   imageFormat: 'jpg',
   quality: 90,
 };
