@@ -35,9 +35,13 @@ export interface Shadow {
 }
 
 export interface Gradient {
-  from: string;
+  from: string; // colours may carry alpha: #RRGGBBAA or rgba()
   to: string;
-  angle: number; // degrees
+  angle: number; // degrees (linear)
+  /** radial: from = centre, to = edges (vignette) */
+  type?: 'linear' | 'radial';
+  /** smooth S-curve falloff instead of a straight blend — no visible edge where it fades out */
+  smooth?: boolean;
 }
 
 export interface Fill {

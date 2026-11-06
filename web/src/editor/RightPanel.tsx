@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import type { CustomFont, DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
 import { LogoLibrary } from './LogoLibrary';
-import { DEFAULT_SMART, textMinSize } from '../../../src/shared/render';
+import { DEFAULT_SMART, parseColor, textMinSize } from '../../../src/shared/render';
 import { scaleLayer } from './groups';
 import { FontPicker, weightsFor } from './FontPicker';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
@@ -565,27 +565,77 @@ function ImageStyle({ layer, setLayer }: { layer: ImageLayer; setLayer: Props['s
   );
 }
 
+/** colour + opacity; stored as #RRGGBB or #RRGGBBAA */
+function ColorAlpha({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const c = parseColor(value) ?? [0, 0, 0, 1];
+  const hex = '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const alpha = Math.round(c[3] * 100);
+  const compose = (h: string, a: number) => {
+    const base = (parseColor(h) ?? [0, 0, 0, 1]).slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+    return a >= 100 ? `#${base}` : `#${base}${Math.round((Math.max(0, a) / 100) * 255).toString(16).padStart(2, '0').toUpperCase()}`;
+  };
+  return (
+    <div className="grid grid-cols-[1fr_76px] gap-1.5">
+      <ColorInput value={hex} onChange={(v) => onChange(compose(v, alpha))} />
+      <NumberInput suffix="%" value={alpha} min={0} max={100} onChange={(v) => onChange(compose(hex, v))} />
+    </div>
+  );
+}
+
+const GRADIENT_PRESETS: { label: string; title: string; fill: Fill }[] = [
+  { label: 'Тінь знизу', title: 'Чорний 60% знизу, зникає до 0% вгорі', fill: { color: '#000000', gradient: { from: '#00000000', to: '#00000099', angle: 180, smooth: true } } },
+  { label: 'Тінь зверху', title: 'Чорний 60% вгорі, зникає донизу', fill: { color: '#000000', gradient: { from: '#00000099', to: '#00000000', angle: 180, smooth: true } } },
+  { label: 'Віньєтка', title: 'Прозорий центр, темні краї', fill: { color: '#000000', gradient: { from: '#00000000', to: '#00000080', angle: 0, type: 'radial', smooth: true } } },
+  { label: 'Світло знизу', title: 'Білий 85% знизу, зникає вгору', fill: { color: '#FFFFFF', gradient: { from: '#FFFFFF00', to: '#FFFFFFD9', angle: 180, smooth: true } } },
+];
+
 function FillEditor({ fill, onChange, allowNone = true }: { fill: Fill | null; onChange: (f: Fill | null) => void; allowNone?: boolean }) {
   const mode = !fill ? 'none' : fill.gradient ? 'gradient' : 'solid';
+  const gd = fill?.gradient;
+  const setG = (patch: Partial<NonNullable<Fill['gradient']>>) => fill && gd && onChange({ ...fill, gradient: { ...gd, ...patch } });
   return (
     <>
       <Seg
         value={mode}
-        onChange={(v) => onChange(v === 'none' ? null : v === 'solid' ? { color: fill?.color ?? '#E53935' } : { color: fill?.color ?? '#E53935', gradient: { from: fill?.color ?? '#FF2E4D', to: '#FF8A00', angle: 135 } })}
+        onChange={(v) => onChange(v === 'none' ? null : v === 'solid' ? { color: fill?.color ?? '#E53935' } : { color: fill?.color ?? '#000000', gradient: { from: '#00000000', to: '#00000099', angle: 180, smooth: true } })}
         options={[...(allowNone ? [{ v: 'none' as const, label: 'Немає' }] : []), { v: 'solid' as const, label: 'Колір' }, { v: 'gradient' as const, label: 'Градієнт' }]}
       />
-      {fill && !fill.gradient && <ColorInput value={fill.color} onChange={(v) => onChange({ color: v })} />}
-      {fill?.gradient && (
+      {fill && !gd && <ColorAlpha value={fill.color} onChange={(v) => onChange({ color: v })} />}
+      {fill && gd && (
         <>
-          <Row label="Від">
-            <ColorInput value={fill.gradient.from} onChange={(v) => onChange({ ...fill, gradient: { ...fill.gradient!, from: v } })} />
+          <div className="grid grid-cols-2 gap-1">
+            {GRADIENT_PRESETS.map((p) => (
+              <button key={p.label} type="button" title={p.title} className="btn-outline btn-sm px-1.5 text-[11px] justify-start gap-1.5" onClick={() => onChange(structuredClone(p.fill))}>
+                <span className="w-4 h-4 rounded border border-ink-200 shrink-0" style={{ background: p.fill.gradient!.type === 'radial' ? `radial-gradient(${p.fill.gradient!.from}, ${p.fill.gradient!.to})` : `linear-gradient(${p.fill.gradient!.from}, ${p.fill.gradient!.to}), repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 50%/6px 6px` }} />
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <Row label="Тип">
+            <Seg value={gd.type ?? 'linear'} onChange={(v) => setG({ type: v })} options={[{ v: 'linear', label: 'Лінійний' }, { v: 'radial', label: 'Радіальний' }]} />
           </Row>
-          <Row label="До">
-            <ColorInput value={fill.gradient.to} onChange={(v) => onChange({ ...fill, gradient: { ...fill.gradient!, to: v } })} />
+          <Row label={gd.type === 'radial' ? 'Центр' : 'Від'}>
+            <ColorAlpha value={gd.from} onChange={(v) => setG({ from: v })} />
           </Row>
-          <Row label="Кут">
-            <NumberInput suffix="°" value={fill.gradient.angle} min={0} max={360} onChange={(v) => onChange({ ...fill, gradient: { ...fill.gradient!, angle: v } })} />
+          <Row label={gd.type === 'radial' ? 'Краї' : 'До'}>
+            <ColorAlpha value={gd.to} onChange={(v) => setG({ to: v })} />
           </Row>
+          {gd.type !== 'radial' && (
+            <Row label="Напрям">
+              <div className="grid grid-cols-[repeat(4,1fr)_70px] gap-1">
+                {([[180, '↓'], [0, '↑'], [90, '→'], [270, '←']] as const).map(([a, l]) => (
+                  <button key={a} type="button" className={`h-9 rounded-lg text-sm ${gd.angle === a ? 'bg-brand-50 text-brand-600' : 'bg-ink-100 hover:bg-ink-200'}`} onClick={() => setG({ angle: a })} title={`${a}°`}>
+                    {l}
+                  </button>
+                ))}
+                <NumberInput suffix="°" value={gd.angle} min={0} max={360} onChange={(v) => setG({ angle: v })} />
+              </div>
+            </Row>
+          )}
+          <Toggle label="М’який перехід (без видимої межі)" checked={!!gd.smooth} onChange={(v) => setG({ smooth: v })} />
+          <button type="button" className="btn-ghost btn-sm w-full text-[12px]" onClick={() => setG({ from: gd.to, to: gd.from })}>
+            ⇅ Поміняти кольори місцями
+          </button>
         </>
       )}
     </>

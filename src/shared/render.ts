@@ -112,16 +112,53 @@ function applyTransform(s: string, t: TextLayer['transform']): string {
 
 // ---------- drawing helpers ----------
 
+/** '#RGB', '#RRGGBB', '#RRGGBBAA', 'rgb()/rgba()', 'transparent' → [r,g,b,a] */
+export function parseColor(c: string): [number, number, number, number] | null {
+  if (!c) return null;
+  if (c === 'transparent') return [0, 0, 0, 0];
+  let m = c.match(/^#([0-9a-f]{3})$/i);
+  if (m) return [...m[1]].map((h) => parseInt(h + h, 16)).concat(1) as any;
+  m = c.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
+  if (m) {
+    const n = m[1];
+    return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16), m[2] ? parseInt(m[2], 16) / 255 : 1];
+  }
+  m = c.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)$/i);
+  if (m) {
+    const a = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+    return [+m[1], +m[2], +m[3], a];
+  }
+  return null;
+}
+
 function setFill(g: G, fill: Fill | null | undefined, x: number, y: number, w: number, h: number): boolean {
   if (!fill) return false;
   if (fill.gradient) {
-    const a = ((fill.gradient.angle ?? 90) - 90) * (Math.PI / 180);
+    const gd = fill.gradient;
     const cx = x + w / 2;
     const cy = y + h / 2;
-    const len = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2;
-    const gr = g.createLinearGradient(cx - Math.cos(a) * len, cy - Math.sin(a) * len, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-    gr.addColorStop(0, fill.gradient.from);
-    gr.addColorStop(1, fill.gradient.to);
+    let gr: any;
+    if (gd.type === 'radial') {
+      gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(w, h) / 2);
+    } else {
+      const a = ((gd.angle ?? 90) - 90) * (Math.PI / 180);
+      const len = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2;
+      gr = g.createLinearGradient(cx - Math.cos(a) * len, cy - Math.sin(a) * len, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+    }
+    const c0 = parseColor(gd.from);
+    const c1 = parseColor(gd.to);
+    if (gd.smooth && c0 && c1) {
+      // eased stops: the fade starts and ends gently, so the band has no visible boundary
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        const e = t * t * (3 - 2 * t);
+        const m = c0.map((v, k) => v + (c1[k] - v) * e);
+        gr.addColorStop(t, `rgba(${Math.round(m[0])},${Math.round(m[1])},${Math.round(m[2])},${m[3].toFixed(3)})`);
+      }
+    } else {
+      gr.addColorStop(0, gd.from);
+      gr.addColorStop(1, gd.to);
+    }
     g.fillStyle = gr;
     return true;
   }
