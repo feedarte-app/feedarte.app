@@ -2,7 +2,8 @@ import { TransferPage } from './pages/Transfer';
 import { StrictMode, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutGrid, LogOut, Shield, KeyRound } from 'lucide-react';
+import { BookOpen, LayoutGrid, LogOut, Shield, KeyRound } from 'lucide-react';
+import { HelpPage } from './pages/Help';
 import './index.css';
 import { api } from './api';
 import { Spinner, ToastProvider, Modal, useToast } from './ui';
@@ -38,6 +39,7 @@ function Shell({ children }: { children: ReactNode }) {
           </Link>
           <nav className="flex gap-1">
             {link('/', 'Проєкти', <LayoutGrid className="w-4 h-4" />)}
+            {link('/help', 'База знань', <BookOpen className="w-4 h-4" />)}
             {user?.role === 'admin' && link('/admin', 'Адмін-панель', <Shield className="w-4 h-4" />)}
           </nav>
           <div className="ml-auto flex items-center gap-2">
@@ -140,6 +142,8 @@ function App() {
           <Route path="/feeds/:id" element={<Protected><FeedPage /></Protected>} />
           <Route path="/designs/:id" element={<Protected bare><EditorPage /></Protected>} />
           <Route path="/transfer/:token" element={<Protected><TransferPage /></Protected>} />
+          <Route path="/help" element={<Protected><HelpPage /></Protected>} />
+          <Route path="/help/:slug" element={<Protected><HelpPage /></Protected>} />
           <Route path="/admin" element={<Protected admin><AdminPage /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

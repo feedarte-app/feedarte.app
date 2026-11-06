@@ -199,6 +199,7 @@ export function ViewMenu({ w, h, view, onView, guides, onClearGuides }: { w: num
                 </span>
               </label>
             ))}
+            <a href="/help/view" target="_blank" rel="noreferrer" className="block px-2.5 py-1.5 text-[12px] text-ink-500 hover:text-ink-800">Як користуватися →</a>
             {guides > 0 && (
               <button className="w-full text-left px-2.5 py-2 rounded-xl text-[12px] text-red-600 hover:bg-red-50" onClick={onClearGuides}>
                 Прибрати всі напрямні ({guides})

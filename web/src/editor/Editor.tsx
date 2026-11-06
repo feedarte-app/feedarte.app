@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff, Plus, Minus } from 'lucide-react';
+import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff, Plus, Minus, CircleHelp } from 'lucide-react';
 import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
 import { cleanup, duplicateSet, groupOf, makeGroup, membersOf, moveBlockAbove, moveSet, pasteSnapshot, patchGroup, selectedGroup, snapshot, ungroup, type Snapshot } from './groups';
 import { uid } from '../../../src/shared/layers';
@@ -551,6 +551,9 @@ function Editor({ meta }: { meta: any }) {
           {saveState === 'dirty' && <>Є зміни…</>}
           {saveState === 'error' && <span className="text-red-600 flex items-center gap-1"><CloudOff className="w-3.5 h-3.5" /> Не збережено</span>}
         </div>
+        <a href="/help/editor-basics" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="База знань: як працювати з редактором">
+          <CircleHelp className="w-[18px] h-[18px]" />
+        </a>
         <button className="btn-outline btn-sm h-10" onClick={() => setServerPreview(true)} disabled={!products[idx]} title="Відрендерити цей товар на сервері — саме так картинка потрапить у фід">
           <ServerCog className="w-4 h-4" /> Перевірити
         </button>
