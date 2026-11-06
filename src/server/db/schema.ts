@@ -109,6 +109,8 @@ export interface DesignOutputSettings {
   keepOriginalAsAdditional: boolean;
   /** 'one_per_group': keep a single variant (prefer in stock) per item_group_id + color — removes size duplicates in ads */
   variants?: 'all' | 'one_per_group';
+  /** combined feed: images of other designs (same feed) added to each item with Meta placement tags → feeds/<token>.csv */
+  extras?: { designId: string; role: '9_16' | '4_5' }[];
   imageFormat: 'jpg' | 'png';
   quality: number;
 }

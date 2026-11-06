@@ -14,6 +14,7 @@ import type { RenderResult } from './engine';
 import * as storage from '../storage';
 import { OutputWriter, type OutputItem } from './output';
 import { log } from '../log';
+import { refreshCombined, saveImageMap, type ImageMap } from './combined';
 
 const PAGE = 1000;
 const GC_GRACE_MS = 3 * 24 * 3600 * 1000; // keep unreferenced images 3 days (ads platforms cache)
@@ -61,6 +62,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   let processed = 0;
   let lastId = 0;
   let thumb: string | null = null;
+  const imageMap: ImageMap = {};
   let lastBeat = Date.now();
 
   // a user publishing the design again while this (now stale) render runs: stop early, the new job takes over
@@ -134,7 +136,11 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     for (const it of pageItems) {
       if (it.image && !thumb) thumb = `/${prefix}/${it.image}`;
       if (it.image) it.image = storage.publicUrl(`${prefix}/${it.image}`);
-      if (!it.skip) included++;
+      if (!it.skip) {
+        included++;
+        const ext = Array.isArray(it.data['id']) ? it.data['id'][0] : it.data['id'];
+        if (ext) imageMap[ext] = it.image;
+      }
     }
     await writer.write(pageItems);
     processed += rows.length;
@@ -162,6 +168,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     return;
   }
   await writer.close();
+  await saveImageMap(designId, imageMap);
   } catch (e) {
     await writer.abort();
     throw e;
@@ -191,6 +198,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     .set({ renderStatus: 'ok', renderStats: stats, renderProgress: 100, thumbnail: thumb ?? design.thumbnail })
     .where(eq(schema.designs.id, designId));
   log.info({ designId, ...stats }, 'design rendered');
+  await refreshCombined(design.feedId, designId).catch((e) => log.error({ err: e, designId }, 'combined refresh failed'));
   return stats;
 }
 

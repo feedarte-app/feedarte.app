@@ -159,7 +159,7 @@ export function FeedPage() {
         </div>
       </Modal>
       <CreateDesignModal open={create} onClose={() => setCreate(false)} feedId={id!} sample={sample} />
-      {settingsFor && <OutputSettingsModal design={settingsFor} fields={f.fields} onClose={() => setSettingsFor(null)} onSaved={load} />}
+      {settingsFor && <OutputSettingsModal design={settingsFor} designs={data.designs} fields={f.fields} onClose={() => setSettingsFor(null)} onSaved={load} />}
     </div>
   );
 }
@@ -251,6 +251,12 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
           <div className="mt-3">
             <div className="text-xs text-ink-500 mb-1">Вихідний фід для Meta / TikTok Catalog:</div>
             <CopyField value={d.outputUrl} />
+            {d.combinedUrl && (
+              <>
+                <div className="text-xs text-ink-500 mt-2 mb-1">Об’єднаний фід з іншими форматами (CSV, для Meta):</div>
+                <CopyField value={d.combinedUrl} />
+              </>
+            )}
           </div>
         )}
         <div className="flex gap-1.5 mt-4 pt-4 border-t border-ink-100">
@@ -475,7 +481,7 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
   );
 }
 
-function OutputSettingsModal({ design, fields, onClose, onSaved }: { design: any; fields: FeedField[]; onClose: () => void; onSaved: () => void }) {
+function OutputSettingsModal({ design, designs, fields, onClose, onSaved }: { design: any; designs: any[]; fields: FeedField[]; onClose: () => void; onSaved: () => void }) {
   const [o, setO] = useState({ ...design.output });
   const [name, setName] = useState(design.name);
   const toast = useToast();
@@ -511,6 +517,42 @@ function OutputSettingsModal({ design, fields, onClose, onSaved }: { design: any
               ? 'З кожної групи (item_group_id) і кольору у фід потрапляє один варіант — перший, що є в наявності. Розміри S, M, L одного товару більше не показуватимуться в рекламі поруч. Для ремаркетингу краще лишити окремий фід з усіма варіантами: піксель передає ID конкретного розміру.'
               : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
           </p>
+        </div>
+        <div data-testid="combined-section">
+          <div className="label">Об’єднаний фід: інші формати в тому ж товарі</div>
+          <p className="text-xs text-ink-500 mb-2 leading-relaxed">
+            Додайте до кожного товару зображення з іншого дизайну цього фіду — наприклад, 9:16 для сторіз. ID товарів лишаються оригінальними, тож піксель працює. Увімкніть в оголошенні «Advantage+ creative → Adapt to placement», і Meta сама підставить 9:16 у Stories, а цей дизайн — у стрічку. Посилання на об’єднаний фід (CSV) з’явиться на картці дизайну.
+          </p>
+          {(o.extras ?? []).map((x: any, i: number) => (
+            <div key={i} className="flex gap-2 mb-2">
+              <select className="input flex-1" value={x.designId} onChange={(e) => setO({ ...o, extras: o.extras.map((y: any, j: number) => (j === i ? { ...y, designId: e.target.value } : y)) })}>
+                {designs.filter((d) => d.id !== design.id).map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}{d.isPublished ? '' : ' (не опубліковано)'}</option>
+                ))}
+              </select>
+              <select className="input w-44" value={x.role} onChange={(e) => setO({ ...o, extras: o.extras.map((y: any, j: number) => (j === i ? { ...y, role: e.target.value } : y)) })}>
+                <option value="9_16">Сторіз / Reels 9:16</option>
+                <option value="4_5">Стрічка 4:5</option>
+              </select>
+              <button className="btn-outline btn-sm px-2" title="Прибрати" onClick={() => setO({ ...o, extras: o.extras.filter((_: any, j: number) => j !== i) })}>✕</button>
+            </div>
+          ))}
+          {designs.some((d) => d.id !== design.id) ? (
+            (o.extras ?? []).length < 3 && (
+              <button
+                data-testid="combined-add"
+                className="btn-outline btn-sm"
+                onClick={() => {
+                  const other = designs.find((d) => d.id !== design.id && d.formatId === 'story') ?? designs.find((d) => d.id !== design.id);
+                  setO({ ...o, extras: [...(o.extras ?? []), { designId: other.id, role: other.formatId === 'portrait' ? '4_5' : '9_16' }] });
+                }}
+              >
+                + Додати формат
+              </button>
+            )
+          ) : (
+            <p className="text-xs text-ink-400">Спершу створіть у цьому фіді ще один дизайн, наприклад 9:16.</p>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={o.keepOriginalAsAdditional} onChange={(e) => setO({ ...o, keepOriginalAsAdditional: e.target.checked })} />

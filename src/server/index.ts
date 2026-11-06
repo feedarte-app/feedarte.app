@@ -178,7 +178,7 @@ async function main() {
   // output catalog feeds for Meta / TikTok
   app.get(
     '/feeds/*',
-    serveFrom(path.join(publicDir, 'feeds'), () => ({ 'cache-control': 'public, max-age=300', 'content-type': 'application/xml; charset=utf-8' })),
+    serveFrom(path.join(publicDir, 'feeds'), (f) => ({ 'cache-control': 'public, max-age=300', 'content-type': f.endsWith('.csv') ? 'text/csv; charset=utf-8' : 'application/xml; charset=utf-8' })),
   );
   // fonts for the editor (same files as the server renderer)
   app.get('/fonts/*', serveFrom(env.fontsDir, () => ({ 'cache-control': longCache })));

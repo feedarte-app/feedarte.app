@@ -1,3 +1,4 @@
+import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
 import { projectFonts } from '../fonts';
 import { z } from 'zod';
 import crypto from 'node:crypto';
@@ -140,6 +141,7 @@ export async function projectRoutes(app: FastifyInstance) {
         hasUnpublished: JSON.stringify(draft) !== JSON.stringify(published),
         isPublished: !!published,
         outputUrl: storage.publicUrl(`feeds/${d.publicToken}.xml`),
+        combinedUrl: d.output?.extras?.length ? storage.publicUrl(`feeds/${d.publicToken}.csv`) : null,
       })),
       runs,
     };
@@ -288,6 +290,7 @@ export async function projectRoutes(app: FastifyInstance) {
             mode: z.enum(['only', 'all']),
             keepOriginalAsAdditional: z.boolean(),
             variants: z.enum(['all', 'one_per_group']),
+            extras: z.array(z.object({ designId: z.string().uuid(), role: z.enum(['9_16', '4_5']) })).max(3),
             imageFormat: z.enum(['jpg', 'png']),
             quality: z.number().int().min(50).max(100),
           })
@@ -296,11 +299,18 @@ export async function projectRoutes(app: FastifyInstance) {
       })
       .parse(req.body);
     const output = body.output ? { ...DEFAULT_OUTPUT, ...design.output, ...body.output } : undefined;
+    if (output?.extras?.length) {
+      const siblings = await db.select({ id: schema.designs.id }).from(schema.designs).where(eq(schema.designs.feedId, design.feedId));
+      const ok = new Set(siblings.map((x) => x.id));
+      output.extras = output.extras.filter((x) => x.designId !== design.id && ok.has(x.designId));
+    }
     await db
       .update(schema.designs)
       .set({ name: body.name, active: body.active, output: output as any })
       .where(eq(schema.designs.id, design.id));
     if ((body.output || body.active === true) && design.published) await queueRender(design.id, 2);
+    // designs used in the combined feed must have an image map (written by their render)
+    for (const x of output?.extras ?? []) if (!(await loadImageMap(x.designId))) await queueRender(x.designId, 2);
     return { ok: true };
   });
 
@@ -325,6 +335,9 @@ export async function projectRoutes(app: FastifyInstance) {
     await db.delete(schema.designs).where(eq(schema.designs.id, design.id));
     await storage.remove(`r/${design.id}`);
     await storage.remove(`feeds/${design.publicToken}.xml`);
+    await storage.remove(`feeds/${design.publicToken}.csv`).catch(() => {});
+    await removeImageMap(design.id);
+    await refreshCombined(design.feedId, design.id).catch(() => {});
     return { ok: true };
   });
 
