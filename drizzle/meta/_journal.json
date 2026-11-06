@@ -36,6 +36,20 @@
       "when": 1793890665551,
       "tag": "0004_job_started_at",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0005_meta_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794000100000,
+      "tag": "0006_direct_links",
+      "breakpoints": true
     }
   ]
 }

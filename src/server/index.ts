@@ -1,3 +1,4 @@
+import { goRoutes } from './routes/go';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -154,6 +155,7 @@ async function main() {
   await app.register(logoRoutes);
   await app.register(transferRoutes);
   await app.register(fontRoutes);
+  await app.register(goRoutes);
 
   // Static files are served by explicit routes (sendFile with a fixed root per route)
   await app.register(fastifyStatic, { root: publicDir, serve: false });

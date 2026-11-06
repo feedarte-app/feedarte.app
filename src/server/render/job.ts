@@ -15,6 +15,8 @@ import * as storage from '../storage';
 import { OutputWriter, type OutputItem } from './output';
 import { log } from '../log';
 import { refreshCombined, saveImageMap, type ImageMap } from './combined';
+import { refreshCatalog } from './catalog';
+import { cleanInstagram, directUrl, validInstagram } from '../routes/go';
 
 const PAGE = 1000;
 const GC_GRACE_MS = 3 * 24 * 3600 * 1000; // keep unreferenced images 3 days (ads platforms cache)
@@ -36,7 +38,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   const started = Date.now();
   await db.update(schema.designs).set({ renderStatus: 'rendering', renderProgress: 0, renderError: null }).where(eq(schema.designs.id, designId));
 
-  const [proj] = await sql<{ id: string; logo_maps: any }[]>`select p.id, p.logo_maps from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
+  const [proj] = await sql<{ id: string; logo_maps: any; instagram: string | null }[]>`select p.id, p.logo_maps, p.instagram from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
   const logoMaps = proj?.logo_maps ?? {};
   const fonts = proj ? fontsUsedBy(doc, await projectFonts(proj.id)) : [];
   const prefix = `r/${designId}`;
@@ -76,6 +78,15 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     }
   }, 4000);
 
+  // "link to Instagram Direct": item links go through our /go redirect (click count per product)
+  const toDirect = out.clickTarget === 'direct' && validInstagram(cleanInstagram(proj?.instagram));
+  const withLink = (data: ProductData): ProductData => {
+    if (!toDirect) return data;
+    const ext = Array.isArray(data['id']) ? data['id'][0] : data['id'];
+    if (!ext) return data;
+    const u = directUrl(design.publicToken, ext);
+    return { ...data, link: u, mobile_link: u };
+  };
   const dropped = out.variants === 'one_per_group' ? await variantDuplicates(design.feedId, out, doc.format) : new Set<number>();
 
   try {
@@ -89,14 +100,15 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     const tasks: { idx: number; name: string; resolved: ReturnType<typeof resolveDesign> }[] = [];
     const pageItems: OutputItem[] = rows.map((row, idx) => {
       if (dropped.has(row.id)) return { data: row.data, image: null, skip: true };
+      const data = withLink(row.data);
       const ctx = new ProductContext(row.data, doc.format);
       const include = evalCondition(out.filter, ctx);
-      if (!include) return { data: row.data, image: null, skip: out.mode === 'only' };
+      if (!include) return { data, image: null, skip: out.mode === 'only' };
       const resolved = resolveDesign(doc, ctx, logoMaps);
       const fp = crypto.createHash('sha1').update(docHash).update(resolvedFingerprint(resolved)).digest('hex').slice(0, 24);
       const name = `${fp}.${ext}`;
       tasks.push({ idx, name, resolved });
-      return { data: row.data, image: name, skip: false };
+      return { data, image: name, skip: false };
     });
 
     await pool(tasks, Math.max(env.renderConcurrency, renderPool.size * 2), async (t) => {
@@ -199,6 +211,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     .where(eq(schema.designs.id, designId));
   log.info({ designId, ...stats }, 'design rendered');
   await refreshCombined(design.feedId, designId).catch((e) => log.error({ err: e, designId }, 'combined refresh failed'));
+  await refreshCatalog(design.feedId, designId).catch((e) => log.error({ err: e, designId }, 'catalog refresh failed'));
   return stats;
 }
 

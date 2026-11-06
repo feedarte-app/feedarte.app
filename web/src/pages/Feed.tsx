@@ -2,7 +2,7 @@ import { NicheChips, matchNiche, type NicheFilter } from '../NicheChips';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ChevronLeft, Plus, RefreshCw, Settings, Trash2, Palette, Copy, Pencil, SlidersHorizontal, Search, ImageOff, Package, History, ListTree,
+  ChevronLeft, LayoutGrid, Plus, RefreshCw, Settings, Trash2, Palette, Copy, Pencil, SlidersHorizontal, Search, ImageOff, Package, History, ListTree,
 } from 'lucide-react';
 import { api, imgProxy, timeAgo } from '../api';
 import { CopyField, Empty, Modal, Spinner, StatusBadge, useToast } from '../ui';
@@ -11,8 +11,10 @@ import { FORMATS, type DesignDoc, type FeedField, type ProductData } from '../..
 import { DesignPreview } from '../editor/Preview';
 import { LayoutTemplate, PenTool, ImageUp } from 'lucide-react';
 import { ConditionEditor } from '../editor/ConditionEditor';
+import { MetaCatalogTab, catalogUsage } from './MetaCatalog';
+import { ClickTarget } from './ClickTarget';
 
-type Tab = 'designs' | 'products' | 'history' | 'fields';
+type Tab = 'designs' | 'catalog' | 'products' | 'history' | 'fields';
 
 export function FeedPage() {
   const { id } = useParams();
@@ -47,6 +49,7 @@ export function FeedPage() {
   const f = data.feed;
   const tabs: [Tab, string, any][] = [
     ['designs', `Дизайни · ${data.designs.length}`, Palette],
+    ['catalog', f.metaCatalog?.enabled ? 'Meta-каталог · увімк.' : 'Meta-каталог', LayoutGrid],
     ['products', `Товари · ${f.productCount.toLocaleString('uk-UA')}`, Package],
     ['fields', `Поля · ${f.fields.length}`, ListTree],
     ['history', 'Історія оновлень', History],
@@ -112,10 +115,11 @@ export function FeedPage() {
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {data.designs.map((d: any) => (
-              <DesignCard key={d.id} d={d} sample={sample} onChange={load} onSettings={() => setSettingsFor(d)} />
+              <DesignCard key={d.id} d={d} usage={catalogUsage(f, d.id)} sample={sample} onChange={load} onSettings={() => setSettingsFor(d)} />
             ))}
           </div>
         ))}
+      {tab === 'catalog' && <MetaCatalogTab feed={f} project={data.project} designs={data.designs} onSaved={load} />}
       {tab === 'products' && <ProductsTab feedId={id!} fields={f.fields} />}
       {tab === 'fields' && <FieldsTab fields={f.fields} />}
       {tab === 'history' && <HistoryTab runs={data.runs} />}
@@ -159,12 +163,12 @@ export function FeedPage() {
         </div>
       </Modal>
       <CreateDesignModal open={create} onClose={() => setCreate(false)} feedId={id!} sample={sample} />
-      {settingsFor && <OutputSettingsModal design={settingsFor} designs={data.designs} fields={f.fields} onClose={() => setSettingsFor(null)} onSaved={load} />}
+      {settingsFor && <OutputSettingsModal design={settingsFor} project={data.project} feedId={f.id} fields={f.fields} onClose={() => setSettingsFor(null)} onSaved={load} />}
     </div>
   );
 }
 
-function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: ProductData | null; onChange: () => void; onSettings: () => void }) {
+function DesignCard({ d, usage, sample, onChange, onSettings }: { d: any; usage?: string | null; sample: ProductData | null; onChange: () => void; onSettings: () => void }) {
   const nav = useNavigate();
   const toast = useToast();
   const fmt = FORMATS.find((x) => x.id === d.formatId);
@@ -202,6 +206,7 @@ function DesignCard({ d, sample, onChange, onSettings }: { d: any; sample: Produ
           {fmt?.label ?? d.formatId} · {d.isPublished ? `версія ${d.version}` : 'чернетка'}
           {d.hasUnpublished && d.isPublished && <span className="text-amber-600"> · є неопубліковані зміни</span>}
         </div>
+        {usage && <div className="mt-1.5 inline-flex chip bg-brand-50 text-brand-700 text-[11px]">{usage}</div>}
         <div className="flex items-center gap-2 mt-3">
           <StatusBadge status={d.renderStatus} />
           {d.renderStatus === 'rendering' && (
@@ -481,7 +486,7 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
   );
 }
 
-function OutputSettingsModal({ design, designs, fields, onClose, onSaved }: { design: any; designs: any[]; fields: FeedField[]; onClose: () => void; onSaved: () => void }) {
+function OutputSettingsModal({ design, project, feedId, fields, onClose, onSaved }: { design: any; project: any; feedId: string; fields: FeedField[]; onClose: () => void; onSaved: () => void }) {
   const [o, setO] = useState({ ...design.output });
   const [name, setName] = useState(design.name);
   const toast = useToast();
@@ -518,41 +523,9 @@ function OutputSettingsModal({ design, designs, fields, onClose, onSaved }: { de
               : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
           </p>
         </div>
-        <div data-testid="combined-section">
-          <div className="label">Об’єднаний фід: інші формати в тому ж товарі</div>
-          <p className="text-xs text-ink-500 mb-2 leading-relaxed">
-            Додайте до кожного товару зображення з іншого дизайну цього фіду — наприклад, 9:16 для сторіз. ID товарів лишаються оригінальними, тож піксель працює. Увімкніть в оголошенні «Advantage+ creative → Adapt to placement», і Meta сама підставить 9:16 у Stories, а цей дизайн — у стрічку. Посилання на об’єднаний фід (CSV) з’явиться на картці дизайну.
-          </p>
-          {(o.extras ?? []).map((x: any, i: number) => (
-            <div key={i} className="flex gap-2 mb-2">
-              <select className="input flex-1" value={x.designId} onChange={(e) => setO({ ...o, extras: o.extras.map((y: any, j: number) => (j === i ? { ...y, designId: e.target.value } : y)) })}>
-                {designs.filter((d) => d.id !== design.id).map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}{d.isPublished ? '' : ' (не опубліковано)'}</option>
-                ))}
-              </select>
-              <select className="input w-44" value={x.role} onChange={(e) => setO({ ...o, extras: o.extras.map((y: any, j: number) => (j === i ? { ...y, role: e.target.value } : y)) })}>
-                <option value="9_16">Сторіз / Reels 9:16</option>
-                <option value="4_5">Стрічка 4:5</option>
-              </select>
-              <button className="btn-outline btn-sm px-2" title="Прибрати" onClick={() => setO({ ...o, extras: o.extras.filter((_: any, j: number) => j !== i) })}>✕</button>
-            </div>
-          ))}
-          {designs.some((d) => d.id !== design.id) ? (
-            (o.extras ?? []).length < 3 && (
-              <button
-                data-testid="combined-add"
-                className="btn-outline btn-sm"
-                onClick={() => {
-                  const other = designs.find((d) => d.id !== design.id && d.formatId === 'story') ?? designs.find((d) => d.id !== design.id);
-                  setO({ ...o, extras: [...(o.extras ?? []), { designId: other.id, role: other.formatId === 'portrait' ? '4_5' : '9_16' }] });
-                }}
-              >
-                + Додати формат
-              </button>
-            )
-          ) : (
-            <p className="text-xs text-ink-400">Спершу створіть у цьому фіді ще один дизайн, наприклад 9:16.</p>
-          )}
+        <ClickTarget value={o.clickTarget ?? 'site'} onChange={(v) => setO({ ...o, clickTarget: v })} project={project} feedId={feedId} onProjectSaved={onSaved} />
+        <div className="rounded-2xl bg-ink-50 border border-ink-100 px-4 py-3 text-[13px] text-ink-600 leading-relaxed">
+          Потрібно кілька дизайнів або стрічку + сторіз в одному каталозі Meta? Це налаштовується на рівні фіду: вкладка <b>«Meta-каталог»</b>.
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={o.keepOriginalAsAdditional} onChange={(e) => setO({ ...o, keepOriginalAsAdditional: e.target.checked })} />

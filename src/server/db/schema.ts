@@ -51,6 +51,8 @@ export const projects = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     logoMaps: jsonb('logo_maps').$type<LogoMaps>().notNull().default({}),
+    /** Instagram username for "link to Direct" feeds (without @) */
+    instagram: text('instagram'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('projects_owner_idx').on(t.ownerId)],
@@ -77,6 +79,9 @@ export const feeds = pgTable(
     fields: jsonb('fields').$type<FeedField[]>().notNull().default([]),
     sourceEtag: text('source_etag'),
     sourceHash: text('source_hash'),
+    /** "Meta catalog": several designs in one feed link (see render/catalog.ts) */
+    metaCatalog: jsonb('meta_catalog').$type<MetaCatalog | null>(),
+    catalogToken: text('catalog_token'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('feeds_project_idx').on(t.projectId), index('feeds_next_idx').on(t.nextSyncAt)],
@@ -103,6 +108,20 @@ export const products = pgTable(
   ],
 );
 
+export interface MetaCatalogSet {
+  slot: number; // 1-based; feed image number = 2*(slot-1), story = 2*(slot-1)+1
+  name: string;
+  feedDesignId: string | null;
+  storyDesignId: string | null;
+}
+export interface MetaCatalog {
+  enabled: boolean;
+  sets: MetaCatalogSet[];
+  variants: 'all' | 'one_per_group';
+  clickTarget?: 'site' | 'direct';
+  lastBuild?: { at: string; items: number; error?: string | null; missing?: string[] } | null;
+}
+
 export interface DesignOutputSettings {
   filter: Condition | null; // which products get the custom image
   mode: 'only' | 'all'; // only matching products, or all (non-matching keep original image)
@@ -111,6 +130,8 @@ export interface DesignOutputSettings {
   variants?: 'all' | 'one_per_group';
   /** combined feed: images of other designs (same feed) added to each item with Meta placement tags → feeds/<token>.csv */
   extras?: { designId: string; role: '9_16' | '4_5' }[];
+  /** where the catalog item link leads: the shop's site (default) or Instagram Direct via /go redirect */
+  clickTarget?: 'site' | 'direct';
   imageFormat: 'jpg' | 'png';
   quality: number;
 }

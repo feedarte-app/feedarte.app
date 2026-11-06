@@ -1,4 +1,6 @@
 import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
+import { cleanInstagram, validInstagram } from './go';
+import { MAX_SETS, catalogKey, ensureCatalogMaps, refreshCatalog } from '../render/catalog';
 import { projectFonts } from '../fonts';
 import { z } from 'zod';
 import crypto from 'node:crypto';
@@ -81,9 +83,21 @@ export async function projectRoutes(app: FastifyInstance) {
 
   app.patch('/api/projects/:id', async (req) => {
     const p = await getProject(req.user!, (req.params as any).id);
-    const body = z.object({ name: z.string().trim().min(1).max(120) }).parse(req.body);
-    await db.update(schema.projects).set({ name: body.name }).where(eq(schema.projects.id, p.id));
-    return { ok: true };
+    const body = z.object({ name: z.string().trim().min(1).max(120).optional(), instagram: z.string().max(200).nullable().optional() }).parse(req.body);
+    let instagram: string | null | undefined;
+    if (body.instagram !== undefined) {
+      instagram = body.instagram ? cleanInstagram(body.instagram) : null;
+      if (instagram && !validInstagram(instagram)) throw new HttpError(400, 'Невірний профіль Instagram — вкажіть, наприклад, gloray.ua');
+    }
+    await db.update(schema.projects).set({ name: body.name, instagram }).where(eq(schema.projects.id, p.id));
+    // links in feeds depend on the profile: rebuild outputs that send clicks to Direct
+    if (instagram !== undefined) {
+      const ds = await sql<{ id: string }[]>`select d.id from designs d join feeds f on f.id = d.feed_id where f.project_id = ${p.id} and d.published is not null and d.output->>'clickTarget' = 'direct'`;
+      for (const d of ds) await queueRender(d.id, 2);
+      const fs = await sql<{ id: string }[]>`select id from feeds where project_id = ${p.id} and meta_catalog->>'clickTarget' = 'direct'`;
+      for (const f of fs) await refreshCatalog(f.id, null).catch(() => {});
+    }
+    return { ok: true, instagram };
   });
 
   app.delete('/api/projects/:id', async (req) => {
@@ -134,8 +148,8 @@ export async function projectRoutes(app: FastifyInstance) {
       .orderBy(desc(schema.syncRuns.startedAt))
       .limit(20);
     return {
-      feed,
-      project: { id: project.id, name: project.name },
+      feed: { ...feed, catalogUrl: feed.catalogToken ? storage.publicUrl(catalogKey(feed.catalogToken)) : null },
+      project: { id: project.id, name: project.name, instagram: project.instagram ?? null },
       designs: designs.map(({ draft, published, ...d }) => ({
         ...d,
         hasUnpublished: JSON.stringify(draft) !== JSON.stringify(published),
@@ -145,6 +159,60 @@ export async function projectRoutes(app: FastifyInstance) {
       })),
       runs,
     };
+  });
+
+  // clicks through /go (Instagram Direct links), per product
+  app.get('/api/feeds/:id/clicks', async (req) => {
+    const { feed } = await getFeed(req.user!, (req.params as any).id);
+    const [t] = await sql<{ d7: number; d30: number }[]>`
+      select coalesce(sum(n) filter (where day > current_date - 7), 0)::int d7, coalesce(sum(n), 0)::int d30
+      from link_clicks where feed_id = ${feed.id} and day > current_date - 30`;
+    const top = await sql<{ id: string; title: string | null; n: number }[]>`
+      select c.external_id id, p.data->>'title' title, sum(c.n)::int n from link_clicks c
+      left join products p on p.feed_id = c.feed_id and p.external_id = c.external_id
+      where c.feed_id = ${feed.id} and c.day > current_date - 30 group by 1, 2 order by 3 desc limit 10`;
+    return { d7: t.d7, d30: t.d30, top };
+  });
+
+  // "Meta catalog": several designs in one feed link
+  app.put('/api/feeds/:id/meta-catalog', async (req) => {
+    const { feed } = await getFeed(req.user!, (req.params as any).id);
+    const body = z
+      .object({
+        enabled: z.boolean(),
+        variants: z.enum(['all', 'one_per_group']).default('all'),
+        clickTarget: z.enum(['site', 'direct']).default('site'),
+        sets: z
+          .array(
+            z.object({
+              slot: z.number().int().min(1).max(MAX_SETS),
+              name: z.string().trim().max(80).default(''),
+              feedDesignId: z.string().uuid().nullable(),
+              storyDesignId: z.string().uuid().nullable(),
+            }),
+          )
+          .max(MAX_SETS),
+      })
+      .parse(req.body);
+    const siblings = new Set((await db.select({ id: schema.designs.id }).from(schema.designs).where(eq(schema.designs.feedId, feed.id))).map((x) => x.id));
+    const slots = new Set<number>();
+    const sets = body.sets
+      .filter((x) => !slots.has(x.slot) && slots.add(x.slot))
+      .map((x) => ({
+        ...x,
+        feedDesignId: x.feedDesignId && siblings.has(x.feedDesignId) ? x.feedDesignId : null,
+        storyDesignId: x.storyDesignId && siblings.has(x.storyDesignId) ? x.storyDesignId : null,
+      }));
+    const prev = feed.metaCatalog;
+    const metaCatalog = { enabled: body.enabled, variants: body.variants, clickTarget: body.clickTarget, sets, lastBuild: prev?.lastBuild ?? null };
+    const catalogToken = feed.catalogToken ?? token();
+    await db.update(schema.feeds).set({ metaCatalog, catalogToken }).where(eq(schema.feeds.id, feed.id));
+    if (body.enabled) {
+      await ensureCatalogMaps(metaCatalog);
+      await refreshCatalog(feed.id, null);
+    }
+    const [f] = await db.select({ metaCatalog: schema.feeds.metaCatalog }).from(schema.feeds).where(eq(schema.feeds.id, feed.id));
+    return { metaCatalog: f.metaCatalog, catalogUrl: storage.publicUrl(catalogKey(catalogToken)) };
   });
 
   app.patch('/api/feeds/:id', async (req) => {
@@ -170,6 +238,7 @@ export async function projectRoutes(app: FastifyInstance) {
       await storage.remove(`r/${d.id}`);
       await storage.remove(`feeds/${d.publicToken}.xml`);
     }
+    if (feed.catalogToken) await storage.remove(catalogKey(feed.catalogToken)).catch(() => {});
     return { ok: true };
   });
 
@@ -290,6 +359,7 @@ export async function projectRoutes(app: FastifyInstance) {
             mode: z.enum(['only', 'all']),
             keepOriginalAsAdditional: z.boolean(),
             variants: z.enum(['all', 'one_per_group']),
+            clickTarget: z.enum(['site', 'direct']),
             extras: z.array(z.object({ designId: z.string().uuid(), role: z.enum(['9_16', '4_5']) })).max(3),
             imageFormat: z.enum(['jpg', 'png']),
             quality: z.number().int().min(50).max(100),
@@ -337,6 +407,13 @@ export async function projectRoutes(app: FastifyInstance) {
     await storage.remove(`feeds/${design.publicToken}.xml`);
     await storage.remove(`feeds/${design.publicToken}.csv`).catch(() => {});
     await removeImageMap(design.id);
+    // drop the deleted design from the feed's Meta catalog
+    const [fd] = await db.select({ metaCatalog: schema.feeds.metaCatalog }).from(schema.feeds).where(eq(schema.feeds.id, design.feedId));
+    if (fd?.metaCatalog?.sets?.length) {
+      const mc = { ...fd.metaCatalog, sets: fd.metaCatalog.sets.map((x) => ({ ...x, feedDesignId: x.feedDesignId === design.id ? null : x.feedDesignId, storyDesignId: x.storyDesignId === design.id ? null : x.storyDesignId })) };
+      await db.update(schema.feeds).set({ metaCatalog: mc }).where(eq(schema.feeds.id, design.feedId));
+      await refreshCatalog(design.feedId, null).catch(() => {});
+    }
     await refreshCombined(design.feedId, design.id).catch(() => {});
     return { ok: true };
   });
