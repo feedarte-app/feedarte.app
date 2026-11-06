@@ -110,9 +110,14 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
   function startMove(e: React.PointerEvent, l: Layer) {
     e.stopPropagation();
     if (e.button !== 0) return;
-    const ids = selectedIds.includes(l.id) && !e.shiftKey ? selectedIds : onPick(l.id, e.shiftKey);
-    if (e.shiftKey) return;
+    // Shift on an already-selected layer: drag the selection along one axis; a plain Shift-click (no drag) still deselects it.
+    const deferToggle = e.shiftKey && selectedIds.includes(l.id);
+    const ids = selectedIds.includes(l.id) ? selectedIds : onPick(l.id, e.shiftKey);
     const movable = doc.layers.filter((x) => ids.includes(x.id) && !x.locked);
+    if (!movable.length) {
+      if (deferToggle) onPick(l.id, true);
+      return;
+    }
     if (!movable.length) return;
     const sx = e.clientX;
     const sy = e.clientY;
@@ -125,15 +130,15 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
       let dy = (ev.clientY - sy) / zoom;
       if (!moved && Math.abs(dx) + Math.abs(dy) < 2 / zoom) return;
       moved = true;
-      if (ev.shiftKey) {
-        if (Math.abs(dx) > Math.abs(dy)) dy = 0;
-        else dx = 0;
-      }
+      // Shift = move along one axis only (the one the pointer has travelled further on)
+      const lock = ev.shiftKey ? (Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y') : null;
+      if (lock === 'x') dy = 0;
+      if (lock === 'y') dx = 0;
       if (!ev.altKey) {
         const s = snap(ids, { x: u.x + dx, y: u.y + dy, w: u.w, h: u.h });
-        dx += s.dx;
-        dy += s.dy;
-        setGuides(s.guides);
+        if (lock !== 'y') dx += s.dx;
+        if (lock !== 'x') dy += s.dy;
+        setGuides(lock ? s.guides.filter((g) => (lock === 'x' ? g.axis === 'x' : g.axis === 'y')) : s.guides);
       }
       onChangeLayers(origins.map((o) => ({ id: o.id, patch: { x: Math.round(o.x + dx), y: Math.round(o.y + dy) } })), key);
     };
@@ -141,6 +146,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setGuides([]);
+      if (!moved && deferToggle) onPick(l.id, true);
       onGestureEnd();
     };
     window.addEventListener('pointermove', move);
