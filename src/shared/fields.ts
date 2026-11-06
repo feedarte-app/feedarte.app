@@ -76,6 +76,7 @@ export const COMPUTED_FIELDS: { key: string; label: string; hint: string }[] = [
   { key: 'current_price_value', label: 'Поточна ціна (число)', hint: 'Для умов > <' },
   { key: 'price_value', label: 'Ціна (число)', hint: '' },
   { key: 'sale_price_value', label: 'Ціна зі знижкою (число)', hint: '' },
+  { key: 'image_count', label: 'Кількість фото', hint: 'Головне + додаткові — для умов (напр. більше ніж 2)' },
 ];
 
 const COMPUTED_KEYS = new Set(COMPUTED_FIELDS.map((f) => f.key));
@@ -108,6 +109,11 @@ export class ProductContext {
       discount_percent: hasDiscount ? String(pct) : '',
       discount_amount_fmt: hasDiscount && price && sale ? formatMoney(price.value - sale.value, this.f) : '',
       has_discount: hasDiscount ? '1' : '',
+      image_count: String(
+        [this.p['image_link'], this.p['additional_image_link']]
+          .flatMap((v) => (Array.isArray(v) ? v : v ? [v] : []))
+          .filter((v) => typeof v === 'string' && v.trim()).length,
+      ),
     };
     this.computed = c;
     return c;

@@ -197,6 +197,9 @@ function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplic
         <Row label="Прозорість">
           <NumberInput suffix="%" value={layer.opacity} min={0} max={100} onChange={(v) => setLayer({ opacity: v })} />
         </Row>
+        <Row label="Розмиття">
+          <NumberInput suffix="px" value={layer.blur ?? 0} min={0} max={120} onChange={(v) => setLayer({ blur: v || undefined })} />
+        </Row>
         <Row label="Вирівняти">
           <div className="grid grid-cols-3 gap-1">
             <button className="btn-outline btn-sm px-1 text-[11px]" onClick={() => setLayer({ x: Math.round((doc.width - layer.w) / 2) })}>↔ центр</button>
@@ -313,6 +316,15 @@ function TextStyle({ layer, setLayer, projectId, fonts, onFontsChanged }: { laye
         <Row label="Колір">
           <ColorInput value={layer.color} onChange={(v) => setLayer({ color: v })} />
         </Row>
+        <Row label="Контур">
+          <div className="grid grid-cols-[1fr_80px] gap-1.5">
+            <ColorInput value={layer.outline?.color ?? '#000000'} onChange={(v) => setLayer({ outline: { color: v, width: layer.outline?.width || 3 } })} />
+            <NumberInput suffix="px" value={layer.outline?.width ?? 0} min={0} max={40} onChange={(v) => setLayer({ outline: v ? { color: layer.outline?.color ?? '#000000', width: v } : null })} />
+          </div>
+        </Row>
+        {layer.outline?.width ? (
+          <Toggle label="Лише контур (без заливки)" checked={layer.color === 'transparent'} onChange={(v) => setLayer({ color: v ? 'transparent' : '#111111' })} />
+        ) : null}
         <Row label="Інтервали">
           <div className="grid grid-cols-2 gap-1.5">
             <NumberInput value={layer.lineHeight} min={50} max={300} suffix="%" onChange={(v) => setLayer({ lineHeight: v })} />

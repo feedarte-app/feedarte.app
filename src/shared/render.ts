@@ -281,14 +281,20 @@ export function effectiveBox(g: G, r: ResolvedLayer): { x: number; y: number; w:
   return { x: l.x, y: l.y, w: l.w, h: l.h };
 }
 
+/** how glyphs are painted: fill, outline, or both (set per text layer) */
+let paint = { fill: true, stroke: false };
+function glyphs(g: G, s: string, x: number, y: number) {
+  if (paint.stroke) g.strokeText(s, x, y);
+  if (paint.fill) g.fillText(s, x, y);
+}
 function drawSpaced(g: G, s: string, x: number, y: number, ls: number) {
   if (!ls) {
-    g.fillText(s, x, y);
+    glyphs(g, s, x, y);
     return;
   }
   let cx = x;
   for (const ch of s) {
-    g.fillText(ch, cx, y);
+    glyphs(g, ch, cx, y);
     cx += g.measureText(ch).width + ls;
   }
 }
@@ -308,6 +314,13 @@ function drawText(g: G, l: TextLayer, text: string) {
   }
   g.font = fontString(l, lay.size);
   g.fillStyle = l.color;
+  const ol = l.outline && l.outline.width > 0 ? l.outline : null;
+  paint = { fill: !ol || (!!l.color && l.color !== 'transparent' && !/^#[0-9a-f]{6}00$/i.test(l.color)), stroke: !!ol };
+  if (ol) {
+    g.strokeStyle = ol.color;
+    g.lineWidth = ol.width;
+    g.lineJoin = 'round';
+  }
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
   const total = lay.lines.length * lay.lineH;
@@ -342,6 +355,7 @@ function drawText(g: G, l: TextLayer, text: string) {
       g.fillRect(l.align === 'justify' ? innerX : x, ly - th / 2, l.align === 'justify' && i < lay.lines.length - 1 ? innerW : w, th);
     }
   });
+  paint = { fill: true, stroke: false };
 }
 
 /** Brand name drawn in place of a missing logo. */
@@ -632,6 +646,7 @@ export function drawDesign(g: G, r: ResolvedDesign, images: Map<string, Img>, op
       g.rotate((l.rotation * Math.PI) / 180);
       g.translate(-cx, -cy);
     }
+    if (l.blur && l.blur > 0) g.filter = `blur(${l.blur}px)`;
     if (l.shadow && (l.shadow.blur || l.shadow.x || l.shadow.y)) {
       g.shadowColor = l.shadow.color;
       g.shadowBlur = l.shadow.blur;

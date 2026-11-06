@@ -58,6 +58,8 @@ export interface LayerBase {
   locked: boolean;
   condition?: Condition | null;
   shadow?: Shadow | null;
+  /** gaussian blur, px (e.g. a soft photo backdrop or a floor shadow) */
+  blur?: number;
   groupId?: string | null;
 }
 
@@ -90,6 +92,8 @@ export interface TextLayer extends LayerBase {
   autoWidth: boolean; // box hugs the text (badges); the layer's width is the maximum
   hideIfEmpty: boolean; // hide when all referenced fields are empty
   bg?: { color: string; radius: number; padX: number; padY: number } | null;
+  /** contour around glyphs; with a transparent colour the text is outline-only */
+  outline?: { color: string; width: number } | null;
 }
 
 export type ImageSource =
