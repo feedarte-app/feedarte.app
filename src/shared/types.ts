@@ -44,6 +44,12 @@ export interface Gradient {
   smooth?: boolean;
 }
 
+export interface Attach {
+  to: string; // layer id
+  side: 'right' | 'left' | 'below' | 'above';
+  gap: number; // px between the two contents
+}
+
 export interface Fill {
   color: string;
   gradient?: Gradient | null;
@@ -64,6 +70,8 @@ export interface LayerBase {
   shadow?: Shadow | null;
   /** gaussian blur, px (e.g. a soft photo backdrop or a floor shadow) */
   blur?: number;
+  /** flexible position: follow another layer's actual content (e.g. price right after the title, fixed gap) */
+  attach?: Attach | null;
   groupId?: string | null;
 }
 

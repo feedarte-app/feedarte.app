@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Copy, Trash2, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Plus, Italic, Minus, Info, FolderOpen, Ungroup, Group as GroupIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
+  Link2,
 } from 'lucide-react';
 import type { CustomFont, DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
 import { LogoLibrary } from './LogoLibrary';
@@ -228,6 +229,8 @@ function LayerProps({ doc, layer, fields, product, focusText, setLayer, onDuplic
           </div>
         </Row>
       </Section>
+
+      <AttachSection doc={doc} layer={layer} setLayer={setLayer} />
 
       <Section
         title="Умова відображення"
@@ -588,6 +591,60 @@ const GRADIENT_PRESETS: { label: string; title: string; fill: Fill }[] = [
   { label: 'Віньєтка', title: 'Прозорий центр, темні краї', fill: { color: '#000000', gradient: { from: '#00000000', to: '#00000080', angle: 0, type: 'radial', smooth: true } } },
   { label: 'Світло знизу', title: 'Білий 85% знизу, зникає вгору', fill: { color: '#FFFFFF', gradient: { from: '#FFFFFF00', to: '#FFFFFFD9', angle: 180, smooth: true } } },
 ];
+
+/** flexible link: keep this layer next to another layer's content with a fixed gap */
+function AttachSection({ doc, layer, setLayer }: { doc: DesignDoc; layer: Layer; setLayer: Props['setLayer'] }) {
+  const a = layer.attach;
+  const others = doc.layers.filter((l) => l.id !== layer.id && l.attach?.to !== layer.id);
+  const set = (patch: Partial<NonNullable<Layer['attach']>>) => setLayer({ attach: { to: a?.to ?? others.find((o) => o.type === 'text')?.id ?? others[0]?.id ?? '', side: 'right', gap: 24, ...a, ...patch } });
+  const SIDES = [
+    { v: 'right' as const, label: '→', name: 'Праворуч', title: 'Праворуч: після кінця тексту — довша назва, ціна правіше' },
+    { v: 'left' as const, label: '←', name: 'Ліворуч', title: 'Ліворуч: перед початком тексту' },
+    { v: 'below' as const, label: '↓', name: 'Під', title: 'Під: нижче останнього рядка — 1 чи 2 рядки назви, опис підлаштовується' },
+    { v: 'above' as const, label: '↑', name: 'Над', title: 'Над: вище першого рядка' },
+  ];
+  return (
+    <Section
+      title="Прив’язка до елемента"
+      defaultOpen={!!a}
+      right={a ? <span className="chip bg-brand-50 text-brand-700">{SIDES.find((x) => x.v === a.side)?.name}</span> : null}
+    >
+      <p className="text-xs text-ink-500 -mt-1">
+        Елемент «їде» за іншим: напр. ціна завжди на однаковій відстані після назви, хоч яка довга назва. Відстань рахується від тексту, а не від рамки.
+      </p>
+      {!a ? (
+        <button className="btn-outline w-full" onClick={() => set({})} disabled={!others.length}>
+          <Link2 className="w-4 h-4" /> Прив’язати
+        </button>
+      ) : (
+        <>
+          <Row label="До">
+            <select className="ed-input" value={a.to} onChange={(e) => set({ to: e.target.value })}>
+              {!others.some((o) => o.id === a.to) && <option value={a.to}>— елемент видалено —</option>}
+              {others.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label="Де">
+            <Seg value={a.side} onChange={(v) => set({ side: v })} options={SIDES} />
+          </Row>
+          <Row label="Відстань">
+            <NumberInput suffix="px" value={a.gap} min={-200} max={600} onChange={(v) => set({ gap: v })} />
+          </Row>
+          <p className="text-[11px] text-ink-500 leading-snug">
+            {a.side === 'right' || a.side === 'left' ? 'Позицію X тепер задає прив’язка, Y — як і раніше.' : 'Позицію Y тепер задає прив’язка, X — як і раніше.'}
+          </p>
+          <button className="btn-ghost btn-sm w-full text-red-600" onClick={() => setLayer({ attach: null })}>
+            Відв’язати
+          </button>
+        </>
+      )}
+    </Section>
+  );
+}
 
 function FillEditor({ fill, onChange, allowNone = true }: { fill: Fill | null; onChange: (f: Fill | null) => void; allowNone?: boolean }) {
   const mode = !fill ? 'none' : fill.gradient ? 'gradient' : 'solid';

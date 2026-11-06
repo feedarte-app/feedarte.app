@@ -88,7 +88,14 @@ export function duplicateSet(doc: DesignDoc, ids: string[], offset = 20): { doc:
     } else groupId = null;
     copies.push({ ...structuredClone(l), id: uid(), name: `${l.name} копія`, x: l.x + offset, y: l.y + offset, groupId } as Layer);
   }
+  relink(doc.layers.filter((x) => ids.includes(x.id)), copies);
   return { doc: { ...doc, layers: [...doc.layers, ...copies], groups: [...(doc.groups ?? []), ...newGroups] }, ids: copies.map((c) => c.id) };
+}
+
+/** copies that were attached to another copied layer follow the copy, not the original */
+function relink(originals: Layer[], copies: Layer[]) {
+  const map = new Map(originals.map((o, i) => [o.id, copies[i]?.id]));
+  for (const c of copies) if (c.attach && map.has(c.attach.to)) c.attach = { ...c.attach, to: map.get(c.attach.to)! };
 }
 
 /** clipboard snapshot: layers (+ the groups they fully cover), independent of the source document */
@@ -129,6 +136,7 @@ export function pasteSnapshot(doc: DesignDoc, snap: Snapshot, offset = 30): { do
         groupId: l.groupId ? gmap.get(l.groupId) ?? null : null,
       }) as Layer,
   );
+  relink(snap.layers, layers);
   return { doc: { ...doc, layers: [...doc.layers, ...layers], groups: [...(doc.groups ?? []), ...groups] }, ids: layers.map((l) => l.id) };
 }
 

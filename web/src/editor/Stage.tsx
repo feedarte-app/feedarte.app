@@ -35,6 +35,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
   const seq = useRef(0);
   const [loading, setLoading] = useState(false);
   const [scaleHint, setScaleHint] = useState<number | null>(null);
+  const [placed, setPlaced] = useState<Record<string, { x: number; y: number }>>({});
 
   // render
   useEffect(() => {
@@ -60,6 +61,10 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
       const b: Record<string, Box> = {};
       g.save();
       for (const rl of r.layers) b[rl.layer.id] = effectiveBox(g, rl);
+      // attached layers are positioned at render time: show their frame where they really are
+      const pos: Record<string, { x: number; y: number }> = {};
+      for (const rl of r.layers) if (rl.layer.attach) pos[rl.layer.id] = { x: rl.layer.x, y: rl.layer.y };
+      setPlaced(pos);
       g.restore();
       setBoxes(b);
       setResolved(r);
@@ -314,7 +319,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
         })()}
         {selected && (
           <SelectionBox
-            l={selected}
+            l={placed[selected.id] ? { ...selected, ...placed[selected.id] } : selected}
             box={boxes[selected.id] ?? selected}
             zoom={zoom}
             onMove={(e) => startMove(e, selected)}

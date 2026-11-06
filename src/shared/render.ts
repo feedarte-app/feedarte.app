@@ -318,6 +318,55 @@ export function effectiveBox(g: G, r: ResolvedLayer): { x: number; y: number; w:
   return { x: l.x, y: l.y, w: l.w, h: l.h };
 }
 
+/** Area actually covered by content: for text — the glyph lines inside the frame (alignment aware). */
+export function contentBox(g: G, r: ResolvedLayer): { x: number; y: number; w: number; h: number } {
+  const l = r.layer;
+  if (l.type !== 'text') return { x: l.x, y: l.y, w: l.w, h: l.h };
+  if (!r.visible || !r.text) return { x: l.x, y: l.y, w: 0, h: 0 };
+  const lay = layoutText(g, l, r.text);
+  const padX = l.bg ? l.bg.padX : 0;
+  const padY = l.bg ? l.bg.padY : 0;
+  const w = Math.max(0, ...lay.widths) + padX * 2;
+  const h = lay.lines.length * lay.lineH + padY * 2;
+  const x = l.align === 'right' ? l.x + l.w - w : l.align === 'center' ? l.x + (l.w - w) / 2 : l.x;
+  const y = l.vAlign === 'bottom' ? l.y + l.h - h : l.vAlign === 'middle' ? l.y + (l.h - h) / 2 : l.y;
+  return { x, y, w, h };
+}
+
+/**
+ * Flexible links: a layer with `attach` is moved so its content sits next to the target's content
+ * with a fixed gap (price follows a title of any length). Runs before drawing; chains are resolved in order.
+ */
+export function applyAttachments(g: G, r: ResolvedDesign) {
+  const byId = new Map(r.layers.map((rl) => [rl.layer.id, rl]));
+  const done = new Set<string>();
+  const place = (rl: ResolvedLayer, depth: number) => {
+    const a = rl.layer.attach;
+    if (!a || done.has(rl.layer.id) || depth > 8) return;
+    done.add(rl.layer.id);
+    const t = byId.get(a.to);
+    if (!t || t === rl) return;
+    if (t.layer.attach) place(t, depth + 1);
+    g.save();
+    const tb = contentBox(g, t);
+    const tHidden = !t.visible || (t.layer.type === 'text' && !t.text);
+    const me = rl.layer;
+    const mb = contentBox(g, rl);
+    g.restore();
+    // offset of my content inside my own frame, so the gap is measured content-to-content
+    const offX = mb.x - me.x;
+    const offY = mb.y - me.y;
+    const gap = tHidden ? 0 : a.gap;
+    const next: Partial<Layer> = {};
+    if (a.side === 'right') next.x = Math.round(tb.x + tb.w + gap - offX);
+    else if (a.side === 'left') next.x = Math.round(tb.x - gap - mb.w - offX);
+    else if (a.side === 'below') next.y = Math.round(tb.y + tb.h + gap - offY);
+    else next.y = Math.round(tb.y - gap - mb.h - offY);
+    rl.layer = { ...me, ...next } as Layer;
+  };
+  for (const rl of r.layers) place(rl, 0);
+}
+
 /** how glyphs are painted: fill, outline, or both (set per text layer) */
 let paint = { fill: true, stroke: false };
 function glyphs(g: G, s: string, x: number, y: number) {
@@ -647,6 +696,7 @@ export interface DrawOptions {
 
 export function drawDesign(g: G, r: ResolvedDesign, images: Map<string, Img>, opts: DrawOptions = {}) {
   const { doc } = r;
+  applyAttachments(g, r);
   g.save();
   g.clearRect(0, 0, doc.width, doc.height);
   if (setFill(g, doc.background, 0, 0, doc.width, doc.height)) g.fillRect(0, 0, doc.width, doc.height);

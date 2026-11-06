@@ -161,8 +161,9 @@ function m3(f: F): Layer[] {
   return [
     img({ name: 'Фото', x: 0, y: 0, w: W, h: H, fit: 'cover' }),
     shape({ name: 'Затемнення зліва', x: -220, y: y - 330, w: 1000, h: 880, fill: { color: '#000000', gradient: { from: '#00000073', to: '#00000000', angle: 0, type: 'radial', smooth: true } } }),
-    text({ name: 'Назва', text: '{{title}}', x: 68, y, w: 420, h: 46, font: SANS, weight: 700, size: 34, color: '#FFFFFF', maxLines: 1, autoFit: true, minSize: 24, shadow: sh }),
-    text({ name: 'Ціна', text: '{{current_price_fmt}}', x: 500, y: y + 2, w: 260, h: 44, font: SANS, weight: 400, size: 32, color: 'rgba(255,255,255,0.85)', maxLines: 1, shadow: sh }),
+    text({ id: 'm3title', name: 'Назва', text: '{{title}}', x: 68, y, w: 640, h: 46, font: SANS, weight: 700, size: 34, color: '#FFFFFF', maxLines: 1, autoFit: true, minSize: 24, shadow: sh }),
+    // the price follows the end of the title with a fixed gap
+    text({ name: 'Ціна', text: '{{current_price_fmt}}', x: 500, y: y + 2, w: 300, h: 44, font: SANS, weight: 400, size: 32, color: 'rgba(255,255,255,0.85)', maxLines: 1, shadow: sh, attach: { to: 'm3title', side: 'right', gap: 28 } }),
     text({ name: 'Опис', text: '{{description}}', x: 68, y: y + 70, w: 560, h: 130, font: SANS, weight: 400, size: 30, color: '#FFFFFF', lineHeight: 120, maxLines: 3, autoFit: true, minSize: 22, vAlign: 'top', shadow: sh }),
   ];
 }
@@ -194,7 +195,12 @@ export function editorialTemplates() {
     for (const f of e.formats) {
       const [W, H] = SIZE[f];
       const layers = e.layers(f);
-      layers.forEach((l, i) => (l.id = `e${i}`));
+      const ren = new Map<string, string>();
+      layers.forEach((l, i) => {
+        ren.set(l.id, `e${i}`);
+        l.id = `e${i}`;
+      });
+      for (const l of layers) if (l.attach) l.attach = { ...l.attach, to: ren.get(l.attach.to) ?? l.attach.to };
       out.push({ id: `ed-${e.key}-${f}`, name: e.name, formatId: f, niches: e.niches, hint: e.hint, doc: { width: W, height: H, background: { color: e.bg ?? '#FFFFFF' }, layers, format: { ...DEFAULT_FORMAT } } });
     }
   }
