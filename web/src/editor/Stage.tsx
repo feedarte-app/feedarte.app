@@ -3,6 +3,7 @@ import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/share
 import { drawDesign, effectiveBox, type ResolvedDesign } from '../../../src/shared/render';
 import { framesBox, scaleLayer } from './groups';
 import { ensureDocFonts, loadImages, resolveFor } from './browserRender';
+import { DEFAULT_VIEW, Rulers, ZonesOverlay, type UserGuide, type ViewOpts } from './Overlays';
 
 type Box = { x: number; y: number; w: number; h: number };
 type Guide = { axis: 'x' | 'y'; pos: number };
@@ -18,8 +19,10 @@ interface Props {
   selectedIds: string[];
   /** select a layer (group-aware); returns the resulting selection */
   onPick: (id: string | null, additive: boolean) => string[];
-  /** show crop-safe zones (centered 1:1, and 4:5 for tall formats) */
-  safeZones?: boolean;
+  /** editor overlays: crop zones, Stories/Reels safe zones, rulers */
+  view?: ViewOpts;
+  userGuides?: UserGuide[];
+  onUserGuides?: (g: UserGuide[]) => void;
   onChangeLayer: (id: string, patch: Partial<Layer>, mergeKey: string) => void;
   onChangeLayers: (patches: { id: string; patch: Partial<Layer> }[], mergeKey: string) => void;
   onGestureEnd: () => void;
@@ -29,7 +32,7 @@ interface Props {
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = (typeof HANDLES)[number];
 
-export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds, safeZones, onPick, onChangeLayer, onChangeLayers, onGestureEnd, onDoubleClick }: Props) {
+export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds, view = DEFAULT_VIEW, userGuides = [], onUserGuides, onPick, onChangeLayer, onChangeLayers, onGestureEnd, onDoubleClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resolved, setResolved] = useState<ResolvedDesign | null>(null);
   const [boxes, setBoxes] = useState<Record<string, Box>>({});
@@ -90,6 +93,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
     const th = 6 / zoom;
     const xs = [0, doc.width / 2, doc.width];
     const ys = [0, doc.height / 2, doc.height];
+    if (view.rulers) for (const g of userGuides) (g.axis === 'x' ? xs : ys).push(g.pos);
     for (const l of doc.layers) {
       if ((Array.isArray(id) ? id.includes(l.id) : l.id === id) || !l.visible) continue;
       const b = boxes[l.id] ?? l;
@@ -265,22 +269,14 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
     : [];
 
   return (
-    <div className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onPick(null, false)}>
+    <div data-stage-root className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onPick(null, false)}>
       <canvas ref={canvasRef} style={{ width: W, height: H, display: 'block' }} />
       {loading && (
         <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-medium text-ink-600 shadow">
           <span className="w-3 h-3 rounded-full border-2 border-ink-300 border-t-brand-500 animate-spin" /> Завантаження фото
         </div>
       )}
-      {safeZones && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {cropZones(doc.width, doc.height).map((zn) => (
-            <div key={zn.label} data-testid={`safe-zone-${zn.label}`} className="absolute pointer-events-none border border-dashed" style={{ left: zn.x * zoom, top: zn.y * zoom, width: zn.w * zoom, height: zn.h * zoom, borderColor: zn.color, boxShadow: zn.shade ? '0 0 0 9999px rgba(15,15,20,0.18)' : undefined }}>
-              <div className="absolute top-1 left-1 text-[10px] font-semibold rounded px-1.5 py-0.5 text-white" style={{ background: zn.color }}>{zn.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <ZonesOverlay w={doc.width} h={doc.height} zoom={zoom} view={view} />
       <div className="absolute inset-0">
         {hitLayers.map(({ layer: l }) => {
           const b = boxes[l.id] ?? l;
@@ -352,6 +348,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
           ),
         )}
       </div>
+      {view.rulers && onUserGuides && <Rulers w={doc.width} h={doc.height} zoom={zoom} guides={userGuides} onChange={onUserGuides} />}
     </div>
   );
 }
@@ -412,12 +409,3 @@ function SelectionBox({ l, box, zoom, onMove, onResize, onRotate }: { l: Layer; 
   );
 }
 
-/** centered crop areas Meta may cut a tall creative down to (feed carousels show 1:1; 9:16 shown in feed → 4:5) */
-export function cropZones(w: number, h: number) {
-  const out: { label: string; x: number; y: number; w: number; h: number; color: string; shade: boolean }[] = [];
-  if (h <= w) return out;
-  const r45 = (w * 5) / 4;
-  if (h > r45 + 2) out.push({ label: '4:5', x: 0, y: (h - r45) / 2, w, h: r45, color: '#0ea5e9', shade: false });
-  out.push({ label: '1:1', x: 0, y: (h - w) / 2, w, h: w, color: '#f97316', shade: true });
-  return out;
-}
