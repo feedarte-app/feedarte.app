@@ -114,7 +114,8 @@ async function writeCombined(
         const u = x.map[ext];
         if (u) images.push({ url: u, tags: x.tags });
       }
-      const extra = (mine && keepOriginal ? [...original, ...additional] : additional).slice(0, 20);
+      // other designs go first in additional_image_link, so in Meta image templates "Image number" 1, 2… points at them
+      const extra = [...images.slice(1).map((i) => i.url), ...(mine && keepOriginal ? [...original, ...additional] : additional)].slice(0, 20);
       for (const f of FIELDS) if (first(p.data[f])) used.add(f);
       rows.push({ d: p.data, images, extra, main: mainUrl });
     }
