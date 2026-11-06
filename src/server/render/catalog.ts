@@ -1,24 +1,42 @@
 // "Meta catalog": one feed link with several Feedarte designs per product.
 //
 // Every product keeps its original id (pixel matching stays intact) and carries the designs as numbered
-// images. Each "set" (slot N) owns two fixed positions: feed image = 2·(N−1), story image = 2·(N−1)+1.
-// In Meta Commerce Manager an image template picks a design by "Image number", and the template is chosen
-// per ad — so one catalog serves many designs. Set 1 is also tagged for placements, so without any
-// template Meta's "Image touch-ups" shows its 4:5 in Feed and its 9:16 in Stories.
-// Positions never shift when sets are added/removed: empty positions repeat the main image.
+// images: each design in the catalog owns a fixed "Image number" (0 = the item's main image). In Meta
+// Commerce Manager an image template picks images by number per placement tab (1:1 / 4:5 / 9:16), and the
+// template is chosen per ad — so one catalog serves any number of designs in any formats/combinations.
+// Without a template, Meta uses image 0, and the 9:16 design marked "storyDefault" is tagged for
+// Stories/Reels, so "Image touch-ups" shows it full screen.
+// Numbers never shift: empty numbers repeat the main image.
 import { eq } from 'drizzle-orm';
 import { db, schema, sqlClient as sql } from '../db';
 import * as storage from '../storage';
 import type { ProductData } from '../../shared/types';
-import type { MetaCatalog, MetaCatalogSet } from '../db/schema';
+import type { MetaCatalog, MetaCatalogItem } from '../db/schema';
 import { loadImageMap, ROLE_TAGS, type ImageMap } from './combined';
 import { queueRender } from '../feed/sync';
 import { log } from '../log';
 import { cleanInstagram, directUrl, validInstagram } from '../routes/go';
 
-export const MAX_SETS = 9;
-export const feedImageNumber = (slot: number) => 2 * (slot - 1);
-export const storyImageNumber = (slot: number) => 2 * (slot - 1) + 1;
+/** Meta: image_link + up to 20 additional images → numbers 0..19 for designs (originals go after) */
+export const MAX_NUMBER = 19;
+
+/** items, converting the first (pair-based) version on the fly */
+export function catalogItems(c: MetaCatalog | null | undefined): MetaCatalogItem[] {
+  if (!c) return [];
+  if (c.items) return c.items;
+  const out: MetaCatalogItem[] = [];
+  for (const st of c.sets ?? []) {
+    if (st.feedDesignId) out.push({ no: 2 * (st.slot - 1), designId: st.feedDesignId, name: st.name || undefined });
+    if (st.storyDesignId) out.push({ no: 2 * (st.slot - 1) + 1, designId: st.storyDesignId, name: st.name || undefined });
+  }
+  return out.sort((a, b) => a.no - b.no);
+}
+/** default story design: explicit, or (legacy) the story design of the first set */
+export function catalogStoryDefault(c: MetaCatalog | null | undefined): string | null {
+  if (!c) return null;
+  if (c.items) return c.storyDefault ?? null;
+  return [...(c.sets ?? [])].sort((a, b) => a.slot - b.slot)[0]?.storyDesignId ?? null;
+}
 
 const FIELDS = [
   'id', 'title', 'description', 'availability', 'condition', 'price', 'sale_price', 'sale_price_effective_date', 'link', 'mobile_link',
@@ -38,7 +56,7 @@ export const catalogKey = (token: string) => `feeds/${token}.csv`;
 /** designs referenced by the catalog */
 export function catalogDesignIds(c: MetaCatalog | null | undefined): string[] {
   if (!c?.enabled) return [];
-  return [...new Set(c.sets.flatMap((s) => [s.feedDesignId, s.storyDesignId]).filter((x): x is string => !!x))];
+  return [...new Set(catalogItems(c).map((i) => i.designId).filter((x): x is string => !!x))];
 }
 
 /** queue renders for designs that have never produced an image map */
@@ -66,7 +84,8 @@ export async function refreshCatalog(feedId: string, designId: string | null) {
 }
 
 async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Promise<{ items: number; missing: string[] }> {
-  const sets = [...c.sets].sort((a, b) => a.slot - b.slot);
+  const items = catalogItems(c).filter((i) => i.no >= 0 && i.no <= MAX_NUMBER);
+  const storyDefault = catalogStoryDefault(c);
   const maps = new Map<string, ImageMap>();
   const missing: string[] = [];
   for (const id of catalogDesignIds(c)) {
@@ -74,14 +93,14 @@ async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Prom
     if (m) maps.set(id, m);
     else missing.push(id);
   }
-  // items = products of the first set that has a feed design (its filter / mode decide what's in the catalog)
-  const base = sets.find((s) => s.feedDesignId && maps.has(s.feedDesignId));
-  if (!base) throw new Error('Немає жодного відрендереного дизайну для стрічки — опублікуйте дизайн і зачекайте рендер');
-  const baseMap = maps.get(base.feedDesignId!)!;
-  const maxSlot = Math.max(...sets.map((s) => s.slot));
+  // products = those of the main design (number 0, else the lowest number that is rendered): its filter/mode decide what's in
+  const base = items.find((i) => i.no === 0 && i.designId && maps.has(i.designId)) ?? items.find((i) => i.designId && maps.has(i.designId));
+  if (!base) throw new Error('Немає жодного відрендереного дизайну — опублікуйте дизайн і зачекайте рендер');
+  const baseMap = maps.get(base.designId!)!;
+  const maxNo = Math.max(...items.map((i) => i.no));
+  const byNo = new Map<number, MetaCatalogItem>(items.map((i) => [i.no, i]));
   const [proj] = await sql<{ instagram: string | null }[]>`select p.instagram from projects p join feeds f on f.project_id = p.id where f.id = ${feedId}`;
   const toDirect = c.clickTarget === 'direct' && validInstagram(cleanInstagram(proj?.instagram));
-  const bySlot = new Map<number, MetaCatalogSet>(sets.map((s) => [s.slot, s]));
 
   type Row = { d: ProductData; images: { url: string; tags: string[] }[]; originals: string[] };
   const rows: Row[] = [];
@@ -100,13 +119,11 @@ async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Prom
       const main = baseMap[ext] ?? originals[0];
       if (!main) continue;
       const images: { url: string; tags: string[] }[] = [];
-      for (let slot = 1; slot <= maxSlot; slot++) {
-        const s = bySlot.get(slot);
-        const feedUrl = (s?.feedDesignId && maps.get(s.feedDesignId)?.[ext]) || main;
-        const storyUrl = (s?.storyDesignId && maps.get(s.storyDesignId)?.[ext]) || feedUrl;
-        const tagged = slot === base.slot;
-        images.push({ url: feedUrl, tags: tagged && s?.feedDesignId ? ROLE_TAGS['4_5'] : [] });
-        images.push({ url: storyUrl, tags: tagged && s?.storyDesignId ? ROLE_TAGS['9_16'] : [] });
+      for (let no = 0; no <= maxNo; no++) {
+        const it = byNo.get(no);
+        const url = (it?.designId && maps.get(it.designId)?.[ext]) || main;
+        const tags = it?.designId && it.designId === storyDefault ? ROLE_TAGS['9_16'] : no === 0 && it?.designId ? ROLE_TAGS['4_5'] : [];
+        images.push({ url, tags });
       }
       for (const f of FIELDS) if (first(p.data[f])) used.add(f);
       const row: Row = { d: p.data, images, originals };
@@ -127,8 +144,7 @@ async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Prom
     }
   }
 
-  // Meta: image_link + up to 20 additional images
-  const nImages = Math.min(21, 2 * maxSlot);
+  const nImages = Math.min(21, maxNo + 1);
   const maxTags = Math.max(...Object.values(ROLE_TAGS).map((t) => t.length));
   const cols = FIELDS.filter((f) => used.has(f));
   const header = [...cols, 'image_link', 'additional_image_link'];

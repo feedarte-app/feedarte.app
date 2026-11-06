@@ -1,6 +1,6 @@
 import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
 import { cleanInstagram, validInstagram } from './go';
-import { MAX_SETS, catalogKey, ensureCatalogMaps, refreshCatalog } from '../render/catalog';
+import { MAX_NUMBER, catalogKey, catalogItems, catalogStoryDefault, ensureCatalogMaps, refreshCatalog } from '../render/catalog';
 import { projectFonts } from '../fonts';
 import { z } from 'zod';
 import crypto from 'node:crypto';
@@ -182,29 +182,21 @@ export async function projectRoutes(app: FastifyInstance) {
         enabled: z.boolean(),
         variants: z.enum(['all', 'one_per_group']).default('all'),
         clickTarget: z.enum(['site', 'direct']).default('site'),
-        sets: z
-          .array(
-            z.object({
-              slot: z.number().int().min(1).max(MAX_SETS),
-              name: z.string().trim().max(80).default(''),
-              feedDesignId: z.string().uuid().nullable(),
-              storyDesignId: z.string().uuid().nullable(),
-            }),
-          )
-          .max(MAX_SETS),
+        storyDefault: z.string().uuid().nullable().default(null),
+        items: z
+          .array(z.object({ no: z.number().int().min(0).max(MAX_NUMBER), designId: z.string().uuid().nullable(), name: z.string().trim().max(80).optional() }))
+          .max(MAX_NUMBER + 1),
       })
       .parse(req.body);
     const siblings = new Set((await db.select({ id: schema.designs.id }).from(schema.designs).where(eq(schema.designs.feedId, feed.id))).map((x) => x.id));
-    const slots = new Set<number>();
-    const sets = body.sets
-      .filter((x) => !slots.has(x.slot) && slots.add(x.slot))
-      .map((x) => ({
-        ...x,
-        feedDesignId: x.feedDesignId && siblings.has(x.feedDesignId) ? x.feedDesignId : null,
-        storyDesignId: x.storyDesignId && siblings.has(x.storyDesignId) ? x.storyDesignId : null,
-      }));
+    const nos = new Set<number>();
+    const items = body.items
+      .filter((x) => !nos.has(x.no) && nos.add(x.no))
+      .map((x) => ({ ...x, designId: x.designId && siblings.has(x.designId) ? x.designId : null }))
+      .sort((x, y) => x.no - y.no);
+    const storyDefault = body.storyDefault && items.some((x) => x.designId === body.storyDefault) ? body.storyDefault : null;
     const prev = feed.metaCatalog;
-    const metaCatalog = { enabled: body.enabled, variants: body.variants, clickTarget: body.clickTarget, sets, lastBuild: prev?.lastBuild ?? null };
+    const metaCatalog = { enabled: body.enabled, variants: body.variants, clickTarget: body.clickTarget, items, storyDefault, lastBuild: prev?.lastBuild ?? null };
     const catalogToken = feed.catalogToken ?? token();
     await db.update(schema.feeds).set({ metaCatalog, catalogToken }).where(eq(schema.feeds.id, feed.id));
     if (body.enabled) {
@@ -409,8 +401,8 @@ export async function projectRoutes(app: FastifyInstance) {
     await removeImageMap(design.id);
     // drop the deleted design from the feed's Meta catalog
     const [fd] = await db.select({ metaCatalog: schema.feeds.metaCatalog }).from(schema.feeds).where(eq(schema.feeds.id, design.feedId));
-    if (fd?.metaCatalog?.sets?.length) {
-      const mc = { ...fd.metaCatalog, sets: fd.metaCatalog.sets.map((x) => ({ ...x, feedDesignId: x.feedDesignId === design.id ? null : x.feedDesignId, storyDesignId: x.storyDesignId === design.id ? null : x.storyDesignId })) };
+    if (fd?.metaCatalog && catalogItems(fd.metaCatalog).some((x) => x.designId === design.id)) {
+      const mc = { ...fd.metaCatalog, sets: undefined, items: catalogItems(fd.metaCatalog).filter((x) => x.designId !== design.id), storyDefault: catalogStoryDefault(fd.metaCatalog) === design.id ? null : catalogStoryDefault(fd.metaCatalog) };
       await db.update(schema.feeds).set({ metaCatalog: mc }).where(eq(schema.feeds.id, design.feedId));
       await refreshCatalog(design.feedId, null).catch(() => {});
     }

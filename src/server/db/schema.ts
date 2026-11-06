@@ -108,15 +108,25 @@ export const products = pgTable(
   ],
 );
 
+/** legacy (07.11 first version): pairs feed+story; converted to items on read */
 export interface MetaCatalogSet {
-  slot: number; // 1-based; feed image number = 2*(slot-1), story = 2*(slot-1)+1
+  slot: number;
   name: string;
   feedDesignId: string | null;
   storyDesignId: string | null;
 }
+/** one design at a fixed image number (0 = main image) */
+export interface MetaCatalogItem {
+  no: number;
+  designId: string | null;
+  name?: string;
+}
 export interface MetaCatalog {
   enabled: boolean;
-  sets: MetaCatalogSet[];
+  items?: MetaCatalogItem[];
+  /** 9:16 design Meta should use for Stories/Reels without a template (placement tags) */
+  storyDefault?: string | null;
+  sets?: MetaCatalogSet[];
   variants: 'all' | 'one_per_group';
   clickTarget?: 'site' | 'direct';
   lastBuild?: { at: string; items: number; error?: string | null; missing?: string[] } | null;
