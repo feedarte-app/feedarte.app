@@ -139,7 +139,7 @@ function setFill(g: G, fill: Fill | null | undefined, x: number, y: number, w: n
     const cy = y + h / 2;
     let gr: any;
     if (gd.type === 'radial') {
-      gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(w, h) / 2);
+      gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) / 2); // inscribed: nothing reaches the box edge
     } else {
       const a = ((gd.angle ?? 90) - 90) * (Math.PI / 180);
       const len = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / 2;

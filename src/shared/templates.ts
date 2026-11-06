@@ -4,6 +4,7 @@ import type { DesignDoc, Layer } from './types';
 import { DEFAULT_FORMAT } from './types';
 import { libraryTemplates, type Niche } from './templates-lib';
 import { storyTemplates } from './templates-story';
+import { editorialTemplates } from './templates-editorial';
 import { IF_DISCOUNT, IF_NO_DISCOUNT, makeIcon, makeImage, makeShape, makeText } from './layers';
 
 export interface BuiltinTemplate {
@@ -145,6 +146,7 @@ let cache: BuiltinTemplate[] | null = null;
 export function builtinTemplates(): BuiltinTemplate[] {
   if (cache) return cache;
   cache = [
+    ...editorialTemplates(),
     ...storyTemplates(),
     ...libraryTemplates(),
     { id: 'b-corner', name: 'Знижка в куті + переваги', formatId: 'square', doc: cornerSquare() },
