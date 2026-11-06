@@ -5,6 +5,7 @@ import {
 import type { CustomFont, DesignDoc, FeedField, Fill, IconLayer, ImageLayer, Layer, LayerGroup, ProductData, ShapeLayer, TextLayer } from '../../../src/shared/types';
 import { LogoLibrary } from './LogoLibrary';
 import { DEFAULT_SMART, textMinSize } from '../../../src/shared/render';
+import { scaleLayer } from './groups';
 import { FontPicker, weightsFor } from './FontPicker';
 import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
 import { ColorInput, NumberInput, Row, Section, Seg, Toggle } from './controls';
@@ -60,6 +61,11 @@ function SelectionProps(p: Props) {
           k === 'l' ? { x } : k === 'r' ? { x: r - l.w } : k === 'c' ? { x: Math.round((x + r) / 2 - l.w / 2) } : k === 't' ? { y } : k === 'b' ? { y: b - l.h } : { y: Math.round((y + b) / 2 - l.h / 2) },
       })),
     );
+  /** scale the whole selection proportionally around its top-left corner */
+  const scaleAll = (k: number) => {
+    if (!isFinite(k) || k <= 0 || Math.abs(k - 1) < 0.001) return;
+    p.moveSelection(ls.filter((l) => !l.locked).map((l) => ({ id: l.id, patch: scaleLayer(l, k, x, y) })));
+  };
   const g = p.group;
   return (
     <div>
@@ -91,8 +97,22 @@ function SelectionProps(p: Props) {
           </div>
         </Row>
         <Row label="Розмір">
-          <div className="text-[13px] text-ink-500 px-1">{r - x} × {b - y}</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberInput prefix="W" value={r - x} min={4} onChange={(v) => scaleAll(v / Math.max(1, r - x))} />
+            <NumberInput prefix="H" value={b - y} min={4} onChange={(v) => scaleAll(v / Math.max(1, b - y))} />
+          </div>
         </Row>
+        <Row label="Масштаб">
+          <div className="grid grid-cols-4 gap-1">
+            {[0.8, 0.9, 1.1, 1.25].map((k) => (
+              <button key={k} className="btn-outline btn-sm px-1 text-[11px]" onClick={() => scaleAll(k)}>
+                {k < 1 ? '−' : '+'}
+                {Math.round(Math.abs(k - 1) * 100)}%
+              </button>
+            ))}
+          </div>
+        </Row>
+        <p className="text-[11px] text-ink-500 -mt-1 leading-snug">Розміри змінюються пропорційно разом зі шрифтами й заокругленнями. На полотні — тягніть за кутові маркери рамки виділення.</p>
         <Row label="На полотні">
           <div className="grid grid-cols-2 gap-1">
             <button className="btn-outline btn-sm px-1 text-[11px]" onClick={() => shift(Math.round((p.doc.width - (r - x)) / 2) - x, 0)}>↔ центр</button>

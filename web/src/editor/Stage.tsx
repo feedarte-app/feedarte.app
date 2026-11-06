@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
 import { drawDesign, effectiveBox, type ResolvedDesign } from '../../../src/shared/render';
+import { framesBox, scaleLayer } from './groups';
 import { ensureDocFonts, loadImages, resolveFor } from './browserRender';
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -33,6 +34,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
   const [guides, setGuides] = useState<Guide[]>([]);
   const seq = useRef(0);
   const [loading, setLoading] = useState(false);
+  const [scaleHint, setScaleHint] = useState<number | null>(null);
 
   // render
   useEffect(() => {
@@ -134,6 +136,42 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setGuides([]);
+      onGestureEnd();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** drag a corner of a multi-selection: everything scales proportionally around the opposite corner */
+  function startGroupScale(e: React.PointerEvent, corner: 'nw' | 'ne' | 'sw' | 'se') {
+    e.stopPropagation();
+    e.preventDefault();
+    const ls = multi.filter((l) => !l.locked);
+    if (!ls.length) return;
+    const origin = ls.map((l) => structuredClone(l));
+    const b = framesBox(origin);
+    const ax = corner.includes('w') ? b.x + b.w : b.x;
+    const ay = corner.includes('n') ? b.y + b.h : b.y;
+    const cx = corner.includes('w') ? b.x : b.x + b.w; // dragged corner
+    const cy = corner.includes('n') ? b.y : b.y + b.h;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const key = `scale:${selectedIds.join(',')}`;
+    const move = (ev: PointerEvent) => {
+      const px = cx + (ev.clientX - sx) / zoom;
+      const py = cy + (ev.clientY - sy) / zoom;
+      // keep proportions: project the pointer onto the box diagonal
+      const kx = Math.abs(px - ax) / Math.max(1, b.w);
+      const ky = Math.abs(py - ay) / Math.max(1, b.h);
+      let k = ev.shiftKey ? Math.max(kx, ky) : (kx + ky) / 2;
+      k = Math.max(0.05, Math.min(20, k));
+      setScaleHint(Math.round(k * 100));
+      onChangeLayers(origin.map((o) => ({ id: o.id, patch: scaleLayer(o, k, ax, ay) })), key);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setScaleHint(null);
       onGestureEnd();
     };
     window.addEventListener('pointermove', move);
@@ -251,7 +289,25 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
                 return <div key={l.id} className="absolute border border-brand-400/70 pointer-events-none" style={{ left: b.x * zoom, top: b.y * zoom, width: b.w * zoom, height: b.h * zoom, transform: l.rotation ? `rotate(${l.rotation}deg)` : undefined }} />;
               })}
               <div className="absolute border-[1.5px] border-dashed border-brand-500 rounded-sm pointer-events-none" style={{ left: u.x * zoom - 4, top: u.y * zoom - 4, width: u.w * zoom + 8, height: u.h * zoom + 8 }}>
-                <div className="absolute -top-6 left-0 text-[10px] bg-brand-500 text-white rounded-full px-2 py-0.5 whitespace-nowrap">{multi.length} елем.</div>
+                <div className="absolute -top-6 left-0 text-[10px] bg-brand-500 text-white rounded-full px-2 py-0.5 whitespace-nowrap">
+                  {multi.length} елем.{scaleHint !== null ? ` · ${scaleHint}%` : ''}
+                </div>
+                {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
+                  <div
+                    key={c}
+                    data-testid={`group-handle-${c}`}
+                    title="Тягніть, щоб пропорційно масштабувати всі вибрані елементи"
+                    className="absolute w-3 h-3 bg-white border-2 border-brand-500 rounded-sm pointer-events-auto"
+                    style={{
+                      left: c.includes('w') ? -6 : undefined,
+                      right: c.includes('e') ? -6 : undefined,
+                      top: c.includes('n') ? -6 : undefined,
+                      bottom: c.includes('s') ? -6 : undefined,
+                      cursor: c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize',
+                    }}
+                    onPointerDown={(e) => startGroupScale(e, c)}
+                  />
+                ))}
               </div>
             </>
           );

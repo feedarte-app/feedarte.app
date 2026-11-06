@@ -155,3 +155,37 @@ export function moveBlockAbove(doc: DesignDoc, ids: string[], targetId: string):
   const anchor = t.groupId && !ids.includes(targetId) ? membersOf(doc, t.groupId) : [targetId];
   return moveRelative(doc, ids, anchor, 'above');
 }
+
+/** proportionally scale a layer around an anchor point — geometry and size-dependent styles */
+export function scaleLayer(l: Layer, k: number, ax: number, ay: number): Partial<Layer> {
+  const r = (v: number) => Math.round(v * k * 100) / 100;
+  const p: any = {
+    x: Math.round(ax + (l.x - ax) * k),
+    y: Math.round(ay + (l.y - ay) * k),
+    w: Math.max(4, Math.round(l.w * k)),
+    h: Math.max(4, Math.round(l.h * k)),
+  };
+  if (l.shadow) p.shadow = { ...l.shadow, blur: r(l.shadow.blur), x: r(l.shadow.x), y: r(l.shadow.y) };
+  if (l.blur) p.blur = r(l.blur);
+  if (l.type === 'text') {
+    p.size = Math.max(4, Math.round(l.size * k));
+    if (l.minSize) p.minSize = Math.max(4, Math.round(l.minSize * k));
+    if (l.letterSpacing) p.letterSpacing = r(l.letterSpacing);
+    if (l.bg) p.bg = { ...l.bg, padX: r(l.bg.padX), padY: r(l.bg.padY), radius: r(l.bg.radius) };
+    if (l.outline) p.outline = { ...l.outline, width: r(l.outline.width) };
+  } else if (l.type === 'image') {
+    p.radius = r(l.radius);
+    if (l.stroke) p.stroke = { ...l.stroke, width: r(l.stroke.width) };
+  } else if (l.type === 'shape') {
+    p.radius = r(l.radius ?? 0);
+    if (l.stroke) p.stroke = { ...l.stroke, width: r(l.stroke.width) };
+  }
+  return p;
+}
+
+/** raw bounding box of layers (their frames) */
+export function framesBox(ls: Layer[]) {
+  const x = Math.min(...ls.map((l) => l.x));
+  const y = Math.min(...ls.map((l) => l.y));
+  return { x, y, w: Math.max(...ls.map((l) => l.x + l.w)) - x, h: Math.max(...ls.map((l) => l.y + l.h)) - y };
+}
