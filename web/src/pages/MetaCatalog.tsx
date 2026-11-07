@@ -16,9 +16,10 @@ type Catalog = {
   sets?: LegacySet[];
   variants: 'all' | 'one_per_group';
   clickTarget?: 'site' | 'direct';
+  directMode?: 'bridge' | 'link';
   lastBuild?: { at: string; items: number; error?: string | null; missing?: string[] } | null;
 };
-type State = { enabled: boolean; items: Item[]; storyDefault: string | null; variants: 'all' | 'one_per_group'; clickTarget: 'site' | 'direct' };
+type State = { enabled: boolean; items: Item[]; storyDefault: string | null; variants: 'all' | 'one_per_group'; clickTarget: 'site' | 'direct'; directMode: 'bridge' | 'link' };
 
 const MAX_NUMBER = 19;
 const FORMAT_LABEL: Record<string, string> = { square: '1:1', portrait: '4:5', story: '9:16', landscape: '1.91:1' };
@@ -41,6 +42,7 @@ function stateOf(c: Catalog | null | undefined): State {
     storyDefault: c?.items ? c.storyDefault ?? null : [...(c?.sets ?? [])].sort((a, b) => a.slot - b.slot)[0]?.storyDesignId ?? null,
     variants: c?.variants ?? 'all',
     clickTarget: c?.clickTarget ?? 'site',
+    directMode: c?.directMode ?? 'bridge',
   };
 }
 
@@ -302,7 +304,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
           )}
 
           <div className="card p-5 space-y-5">
-            <ClickTarget value={c.clickTarget} onChange={(v) => setC({ ...c, clickTarget: v })} project={project} feedId={feed.id} onProjectSaved={onSaved} />
+            <ClickTarget value={c.clickTarget} onChange={(v) => setC({ ...c, clickTarget: v })} mode={c.directMode} onMode={(v) => setC({ ...c, directMode: v })} project={project} feedId={feed.id} onProjectSaved={onSaved} />
             <div>
               <div className="label">Розміри та інші варіанти товару</div>
               <div className="seg">

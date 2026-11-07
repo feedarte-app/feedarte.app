@@ -15,7 +15,7 @@ import type { MetaCatalog, MetaCatalogItem } from '../db/schema';
 import { loadImageMap, ROLE_TAGS, type ImageMap } from './combined';
 import { queueRender } from '../feed/sync';
 import { log } from '../log';
-import { cleanInstagram, directUrl, validInstagram } from '../routes/go';
+import { cleanInstagram, directLinkFor, validInstagram } from '../routes/go';
 
 /** Meta: image_link + up to 20 additional images → numbers 0..19 for designs (originals go after) */
 export const MAX_NUMBER = 19;
@@ -99,7 +99,7 @@ async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Prom
   const baseMap = maps.get(base.designId!)!;
   const maxNo = Math.max(...items.map((i) => i.no));
   const byNo = new Map<number, MetaCatalogItem>(items.map((i) => [i.no, i]));
-  const [proj] = await sql<{ instagram: string | null }[]>`select p.instagram from projects p join feeds f on f.project_id = p.id where f.id = ${feedId}`;
+  const [proj] = await sql<{ instagram: string | null; direct: any }[]>`select p.instagram, p.direct from projects p join feeds f on f.project_id = p.id where f.id = ${feedId}`;
   const toDirect = c.clickTarget === 'direct' && validInstagram(cleanInstagram(proj?.instagram));
 
   type Row = { d: ProductData; images: { url: string; tags: string[] }[]; originals: string[] };
@@ -157,7 +157,8 @@ async function buildCatalog(feedId: string, token: string, c: MetaCatalog): Prom
     const imgs = r.images.slice(0, nImages);
     const extra = [...imgs.slice(1).map((i) => i.url), ...r.originals].slice(0, 20);
     const ext = first(r.d['id']);
-    const vals = cols.map((c2) => (toDirect && (c2 === 'link' || c2 === 'mobile_link') ? directUrl(token, ext) : first(r.d[c2])));
+    const dl = toDirect ? directLinkFor(c.directMode, token, cleanInstagram(proj?.instagram), proj?.direct, r.d) : '';
+    const vals = cols.map((c2) => (toDirect && (c2 === 'link' || c2 === 'mobile_link') ? dl : first(r.d[c2])));
     vals.push(imgs[0].url, extra.join(','));
     for (let i = 0; i < nImages; i++) {
       vals.push(imgs[i]?.url ?? '');

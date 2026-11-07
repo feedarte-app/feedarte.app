@@ -53,6 +53,8 @@ export const projects = pgTable(
     logoMaps: jsonb('logo_maps').$type<LogoMaps>().notNull().default({}),
     /** Instagram username for "link to Direct" feeds (without @) */
     instagram: text('instagram'),
+    /** Direct links: prefilled message, Meta pixel for the /go page */
+    direct: jsonb('direct').$type<DirectSettings | null>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('projects_owner_idx').on(t.ownerId)],
@@ -108,6 +110,16 @@ export const products = pgTable(
   ],
 );
 
+export interface DirectSettings {
+  /** prefilled DM text template: {title} {price} {id} {brand} {link} */
+  message?: string;
+  pixelId?: string | null;
+  /** Conversions API access token (server-side event, instant redirect) */
+  capiToken?: string | null;
+  /** standard Meta event (Contact, Lead, ViewContent…) or a custom name */
+  eventName?: string;
+}
+
 /** legacy (07.11 first version): pairs feed+story; converted to items on read */
 export interface MetaCatalogSet {
   slot: number;
@@ -129,6 +141,8 @@ export interface MetaCatalog {
   sets?: MetaCatalogSet[];
   variants: 'all' | 'one_per_group';
   clickTarget?: 'site' | 'direct';
+  /** direct: through Feedarte /go page (counts clicks, pixel) or a plain ig.me link in the feed */
+  directMode?: 'bridge' | 'link';
   lastBuild?: { at: string; items: number; error?: string | null; missing?: string[] } | null;
 }
 
@@ -140,8 +154,9 @@ export interface DesignOutputSettings {
   variants?: 'all' | 'one_per_group';
   /** combined feed: images of other designs (same feed) added to each item with Meta placement tags → feeds/<token>.csv */
   extras?: { designId: string; role: '9_16' | '4_5' }[];
-  /** where the catalog item link leads: the shop's site (default) or Instagram Direct via /go redirect */
+  /** where the catalog item link leads: the shop's site (default) or Instagram Direct */
   clickTarget?: 'site' | 'direct';
+  directMode?: 'bridge' | 'link';
   imageFormat: 'jpg' | 'png';
   quality: number;
 }

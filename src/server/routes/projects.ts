@@ -1,5 +1,6 @@
 import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
 import { cleanInstagram, validInstagram } from './go';
+import type { DirectSettings } from '../db/schema';
 import { MAX_NUMBER, catalogKey, catalogItems, catalogStoryDefault, ensureCatalogMaps, refreshCatalog } from '../render/catalog';
 import { projectFonts } from '../fonts';
 import { z } from 'zod';
@@ -36,6 +37,12 @@ const conditionSchema = z
   .nullable();
 
 const token = () => crypto.randomBytes(12).toString('base64url');
+
+const MASK = '••••••••';
+/** direct settings for the client: never send the CAPI token back */
+function publicDirect(d: DirectSettings | null | undefined) {
+  return { message: d?.message ?? '', pixelId: d?.pixelId ?? '', capiToken: d?.capiToken ? MASK : '', eventName: d?.eventName ?? '' };
+}
 
 export async function projectRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireUser);
@@ -83,21 +90,41 @@ export async function projectRoutes(app: FastifyInstance) {
 
   app.patch('/api/projects/:id', async (req) => {
     const p = await getProject(req.user!, (req.params as any).id);
-    const body = z.object({ name: z.string().trim().min(1).max(120).optional(), instagram: z.string().max(200).nullable().optional() }).parse(req.body);
+    const body = z
+      .object({
+        name: z.string().trim().min(1).max(120).optional(),
+        instagram: z.string().max(200).nullable().optional(),
+        direct: z
+          .object({
+            message: z.string().max(500).optional(),
+            pixelId: z.string().trim().regex(/^\d{0,20}$/, 'Pixel ID — лише цифри').nullable().optional(),
+            capiToken: z.string().trim().max(400).nullable().optional(),
+            eventName: z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/, 'Назва події — латиницею, без пробілів').optional(),
+          })
+          .optional(),
+      })
+      .parse(req.body);
     let instagram: string | null | undefined;
     if (body.instagram !== undefined) {
       instagram = body.instagram ? cleanInstagram(body.instagram) : null;
       if (instagram && !validInstagram(instagram)) throw new HttpError(400, 'Невірний профіль Instagram — вкажіть, наприклад, gloray.ua');
     }
-    await db.update(schema.projects).set({ name: body.name, instagram }).where(eq(schema.projects.id, p.id));
-    // links in feeds depend on the profile: rebuild outputs that send clicks to Direct
-    if (instagram !== undefined) {
+    let direct: DirectSettings | undefined;
+    if (body.direct) {
+      const [cur] = await db.select({ direct: schema.projects.direct }).from(schema.projects).where(eq(schema.projects.id, p.id));
+      direct = { ...(cur?.direct ?? {}), ...body.direct };
+      // keep the stored token when the client sends the masked placeholder
+      if (body.direct.capiToken === MASK) direct.capiToken = cur?.direct?.capiToken ?? null;
+    }
+    await db.update(schema.projects).set({ name: body.name, instagram, direct }).where(eq(schema.projects.id, p.id));
+    // links in feeds depend on the profile / message: rebuild outputs that send clicks to Direct
+    if (instagram !== undefined || body.direct?.message !== undefined) {
       const ds = await sql<{ id: string }[]>`select d.id from designs d join feeds f on f.id = d.feed_id where f.project_id = ${p.id} and d.published is not null and d.output->>'clickTarget' = 'direct'`;
       for (const d of ds) await queueRender(d.id, 2);
       const fs = await sql<{ id: string }[]>`select id from feeds where project_id = ${p.id} and meta_catalog->>'clickTarget' = 'direct'`;
       for (const f of fs) await refreshCatalog(f.id, null).catch(() => {});
     }
-    return { ok: true, instagram };
+    return { ok: true, instagram, direct: direct ? publicDirect(direct) : undefined };
   });
 
   app.delete('/api/projects/:id', async (req) => {
@@ -149,7 +176,7 @@ export async function projectRoutes(app: FastifyInstance) {
       .limit(20);
     return {
       feed: { ...feed, catalogUrl: feed.catalogToken ? storage.publicUrl(catalogKey(feed.catalogToken)) : null },
-      project: { id: project.id, name: project.name, instagram: project.instagram ?? null },
+      project: { id: project.id, name: project.name, instagram: project.instagram ?? null, direct: publicDirect(project.direct) },
       designs: designs.map(({ draft, published, ...d }) => ({
         ...d,
         hasUnpublished: JSON.stringify(draft) !== JSON.stringify(published),
@@ -182,6 +209,7 @@ export async function projectRoutes(app: FastifyInstance) {
         enabled: z.boolean(),
         variants: z.enum(['all', 'one_per_group']).default('all'),
         clickTarget: z.enum(['site', 'direct']).default('site'),
+        directMode: z.enum(['bridge', 'link']).default('bridge'),
         storyDefault: z.string().uuid().nullable().default(null),
         items: z
           .array(z.object({ no: z.number().int().min(0).max(MAX_NUMBER), designId: z.string().uuid().nullable(), name: z.string().trim().max(80).optional() }))
@@ -196,7 +224,7 @@ export async function projectRoutes(app: FastifyInstance) {
       .sort((x, y) => x.no - y.no);
     const storyDefault = body.storyDefault && items.some((x) => x.designId === body.storyDefault) ? body.storyDefault : null;
     const prev = feed.metaCatalog;
-    const metaCatalog = { enabled: body.enabled, variants: body.variants, clickTarget: body.clickTarget, items, storyDefault, lastBuild: prev?.lastBuild ?? null };
+    const metaCatalog = { enabled: body.enabled, variants: body.variants, clickTarget: body.clickTarget, directMode: body.directMode, items, storyDefault, lastBuild: prev?.lastBuild ?? null };
     const catalogToken = feed.catalogToken ?? token();
     await db.update(schema.feeds).set({ metaCatalog, catalogToken }).where(eq(schema.feeds.id, feed.id));
     if (body.enabled) {
@@ -352,6 +380,7 @@ export async function projectRoutes(app: FastifyInstance) {
             keepOriginalAsAdditional: z.boolean(),
             variants: z.enum(['all', 'one_per_group']),
             clickTarget: z.enum(['site', 'direct']),
+            directMode: z.enum(['bridge', 'link']),
             extras: z.array(z.object({ designId: z.string().uuid(), role: z.enum(['9_16', '4_5']) })).max(3),
             imageFormat: z.enum(['jpg', 'png']),
             quality: z.number().int().min(50).max(100),

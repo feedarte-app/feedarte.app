@@ -16,7 +16,7 @@ import { OutputWriter, type OutputItem } from './output';
 import { log } from '../log';
 import { refreshCombined, saveImageMap, type ImageMap } from './combined';
 import { refreshCatalog } from './catalog';
-import { cleanInstagram, directUrl, validInstagram } from '../routes/go';
+import { cleanInstagram, directLinkFor, validInstagram } from '../routes/go';
 
 const PAGE = 1000;
 const GC_GRACE_MS = 3 * 24 * 3600 * 1000; // keep unreferenced images 3 days (ads platforms cache)
@@ -38,7 +38,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
   const started = Date.now();
   await db.update(schema.designs).set({ renderStatus: 'rendering', renderProgress: 0, renderError: null }).where(eq(schema.designs.id, designId));
 
-  const [proj] = await sql<{ id: string; logo_maps: any; instagram: string | null }[]>`select p.id, p.logo_maps, p.instagram from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
+  const [proj] = await sql<{ id: string; logo_maps: any; instagram: string | null; direct: any }[]>`select p.id, p.logo_maps, p.instagram, p.direct from projects p join feeds f on f.project_id = p.id where f.id = ${design.feedId}`;
   const logoMaps = proj?.logo_maps ?? {};
   const fonts = proj ? fontsUsedBy(doc, await projectFonts(proj.id)) : [];
   const prefix = `r/${designId}`;
@@ -84,7 +84,7 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
     if (!toDirect) return data;
     const ext = Array.isArray(data['id']) ? data['id'][0] : data['id'];
     if (!ext) return data;
-    const u = directUrl(design.publicToken, ext);
+    const u = directLinkFor(out.directMode, design.publicToken, cleanInstagram(proj?.instagram), proj?.direct, data);
     return { ...data, link: u, mobile_link: u };
   };
   const dropped = out.variants === 'one_per_group' ? await variantDuplicates(design.feedId, out, doc.format) : new Set<number>();

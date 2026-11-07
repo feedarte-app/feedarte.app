@@ -50,6 +50,13 @@
       "when": 1794000100000,
       "tag": "0006_direct_links",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794000200000,
+      "tag": "0007_direct_settings",
+      "breakpoints": true
     }
   ]
 }
