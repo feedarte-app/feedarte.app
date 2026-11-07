@@ -78,6 +78,7 @@ export function FeedPage() {
         <div className="flex gap-2">
           <MoreMenu
             testId="feed-menu"
+            size="md"
             label="Дії з фідом"
             items={[
               { label: 'Налаштування фіду', icon: <Settings />, onClick: () => setEdit(true) },

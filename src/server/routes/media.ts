@@ -103,6 +103,8 @@ export async function mediaRoutes(app: FastifyInstance) {
     return reply.send(buf);
   });
 
+  app.get('/api/icons', { preHandler: requireUser }, async () => ({ icons: allIcons() }));
+
   app.get('/api/icons/:name', async (req, reply) => {
     const name = String((req.params as any).name).replace(/\.svg$/, '');
     const q = req.query as any;

@@ -361,6 +361,17 @@ function PhotoTab({ doc, projectId, addLayer, maps, onLogosChanged, fields }: Pr
 }
 
 let iconCache: string[] | null = null;
+/** Ukrainian search words → icon name fragments (icons are named in English) */
+const ICON_ALIASES: Record<string, string[]> = {
+  подарунок: ['gift'], доставка: ['truck', 'package'], посилка: ['package'], знижка: ['percent', 'badge-percent', 'tag'], відсоток: ['percent'],
+  ціна: ['tag', 'badge'], зірка: ['star'], серце: ['heart'], вогонь: ['flame'], хіт: ['flame'], годинник: ['clock', 'timer'], час: ['clock', 'timer'],
+  кошик: ['shopping-cart', 'shopping-basket'], сумка: ['shopping-bag'], картка: ['credit-card'], оплата: ['credit-card', 'wallet'], гаманець: ['wallet'],
+  телефон: ['phone', 'smartphone'], мапа: ['map'], адреса: ['map-pin'], локація: ['map-pin'], повернення: ['rotate-ccw', 'undo'], обмін: ['repeat', 'refresh'],
+  гарантія: ['shield', 'badge-check'], якість: ['award', 'badge-check'], нагорода: ['award', 'trophy'], корона: ['crown'], новинка: ['sparkles', 'badge'],
+  блискавка: ['zap'], швидко: ['zap', 'rocket'], лайк: ['thumbs-up'], галочка: ['check'], стрілка: ['arrow'], сонце: ['sun'], сніг: ['snowflake'],
+  листок: ['leaf'], еко: ['leaf', 'recycle'], дитина: ['baby'], одяг: ['shirt'], взуття: ['footprints'], годинникнаручний: ['watch'], діамант: ['gem'], прикраси: ['gem'],
+  дім: ['home', 'house'], меблі: ['sofa', 'armchair'], кава: ['coffee'], подарунки: ['gift'], календар: ['calendar'], пошта: ['mail'], чат: ['message-circle'], інстаграм: ['instagram'],
+};
 const POPULAR = ['truck', 'package', 'badge-percent', 'percent', 'flame', 'globe', 'shield-check', 'star', 'heart', 'gift', 'tag', 'clock', 'check-circle', 'sparkles', 'zap', 'shopping-bag', 'shopping-cart', 'credit-card', 'rotate-ccw', 'award', 'crown', 'thumbs-up', 'phone', 'map-pin'];
 
 function ObjectsTab({ doc, addLayer }: Props) {
@@ -374,7 +385,11 @@ function ObjectsTab({ doc, addLayer }: Props) {
         setIcons(r.icons);
       });
   }, []);
-  const list = q ? icons.filter((i) => i.includes(q.toLowerCase().trim())) : [...POPULAR.filter((p) => icons.includes(p)), ...icons.filter((i) => !POPULAR.includes(i))];
+  const needle = q.toLowerCase().trim();
+  const aliasHits = needle ? Object.entries(ICON_ALIASES).filter(([k]) => k.startsWith(needle) || needle.startsWith(k)).flatMap(([, v]) => v) : [];
+  const list = needle
+    ? icons.filter((i) => i.includes(needle) || aliasHits.some((a) => i === a || i.startsWith(a + '-') || i.includes(a)))
+    : [...POPULAR.filter((p) => icons.includes(p)), ...icons.filter((i) => !POPULAR.includes(i))];
   const s = Math.round(doc.width * 0.3);
   const shapes: [string, any, () => Layer][] = [
     ['Прямокутник', Square, () => makeShape({ name: 'Прямокутник', ...center(doc, s, s) })],
@@ -402,7 +417,7 @@ function ObjectsTab({ doc, addLayer }: Props) {
         <div className="eyebrow mb-2">Іконки</div>
         <div className="relative mb-2">
           <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-ink-400" />
-          <input className="ed-input pl-8" placeholder="Пошук англ.: truck, gift, star…" value={q} onChange={(e) => { setQ(e.target.value); setLimit(48); }} onKeyDown={(e) => e.stopPropagation()} />
+          <input className="ed-input pl-8" placeholder="Пошук: подарунок, доставка, gift, star…" value={q} onChange={(e) => { setQ(e.target.value); setLimit(48); }} onKeyDown={(e) => e.stopPropagation()} />
         </div>
         <div className="grid grid-cols-4 gap-1.5">
           {list.slice(0, limit).map((name) => (
@@ -416,6 +431,8 @@ function ObjectsTab({ doc, addLayer }: Props) {
             </button>
           ))}
         </div>
+        {needle && !list.length && <div className="text-[12px] text-ink-500 px-1 py-3">Нічого не знайдено. Спробуйте англійською: gift, truck, star, heart.</div>}
+        {!icons.length && !needle && <div className="text-[12px] text-ink-500 px-1 py-3">Завантаження іконок…</div>}
         {list.length > limit && (
           <button className="btn-outline btn-sm w-full mt-2" onClick={() => setLimit(limit + 96)}>
             <Plus className="w-3.5 h-3.5" /> Показати більше іконок

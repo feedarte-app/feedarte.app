@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { X, Loader2, Check, AlertTriangle, MoreHorizontal } from 'lucide-react';
 
 export function Spinner({ className = 'w-4 h-4' }: { className?: string }) {
   return <Loader2 className={`${className} animate-spin`} />;
@@ -114,7 +114,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 export type MenuItem = { label: string; icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; hint?: string } | 'sep';
 
 /** "⋯" button with a small popover menu (secondary actions live here, not as rows of icons) */
-export function MoreMenu({ items, label = 'Ще дії', testId }: { items: MenuItem[]; label?: string; testId?: string }) {
+export function MoreMenu({ items, label = 'Ще дії', testId, size = 'sm' }: { items: MenuItem[]; label?: string; testId?: string; size?: 'sm' | 'md' }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const btn = useRef<HTMLButtonElement | null>(null);
@@ -139,8 +139,8 @@ export function MoreMenu({ items, label = 'Ще дії', testId }: { items: Menu
   }, [open]);
   return (
     <>
-      <button ref={btn} data-testid={testId} className="btn-outline btn-sm px-2.5" title={label} aria-label={label} aria-expanded={open} onClick={toggle}>
-        <span className="text-[18px] leading-none -mt-1.5 tracking-wider">⋯</span>
+      <button ref={btn} data-testid={testId} className={`btn-outline ${size === 'sm' ? 'btn-sm px-2.5' : 'px-3.5'}`} title={label} aria-label={label} aria-expanded={open} onClick={toggle}>
+        <MoreHorizontal className="w-4 h-4" />
       </button>
       {open &&
         createPortal(
