@@ -1,15 +1,15 @@
 import { NicheChips, matchNiche, type NicheFilter } from '../NicheChips';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ChevronLeft, LayoutGrid, Plus, RefreshCw, Settings, Trash2, Palette, Copy, Pencil, SlidersHorizontal, Search, ImageOff, Package, History, ListTree,
 } from 'lucide-react';
 import { api, imgProxy, timeAgo } from '../api';
-import { CopyField, Empty, Modal, Spinner, StatusBadge, useToast } from '../ui';
+import { CopyField, Empty, Modal, MoreMenu, Section, Spinner, StatusBadge, useToast, copyText } from '../ui';
 import { FeedForm, INTERVALS } from './Project';
 import { FORMATS, type DesignDoc, type FeedField, type ProductData } from '../../../src/shared/types';
 import { DesignPreview } from '../editor/Preview';
-import { LayoutTemplate, PenTool, ImageUp } from 'lucide-react';
+import { LayoutTemplate, PenTool, ImageUp, Link2, ExternalLink, Pause, Play } from 'lucide-react';
 import { ConditionEditor } from '../editor/ConditionEditor';
 import { MetaCatalogTab, catalogUsage } from './MetaCatalog';
 import { ClickTarget } from './ClickTarget';
@@ -51,9 +51,10 @@ export function FeedPage() {
     ['designs', `Дизайни · ${data.designs.length}`, Palette],
     ['catalog', f.metaCatalog?.enabled ? 'Meta-каталог · увімк.' : 'Meta-каталог', LayoutGrid],
     ['products', `Товари · ${f.productCount.toLocaleString('uk-UA')}`, Package],
-    ['fields', `Поля · ${f.fields.length}`, ListTree],
-    ['history', 'Історія оновлень', History],
   ];
+  const inProducts = tab === 'products' || tab === 'fields' || tab === 'history';
+  const nextSync = f.enabled ? new Date(f.nextSyncAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }) : null;
+  const interval = INTERVALS.find(([v]) => v === f.intervalMinutes)?.[1]?.toLowerCase() ?? `кожні ${f.intervalMinutes} хв`;
 
   return (
     <div>
@@ -67,38 +68,42 @@ export function FeedPage() {
             <StatusBadge status={f.status} />
             {!f.enabled && <span className="chip bg-ink-100 text-ink-500">Пауза</span>}
           </div>
-          <div className="text-xs text-ink-500 font-mono mt-1 truncate max-w-2xl">{f.sourceUrl}</div>
-          <div className="text-[13px] text-ink-500 mt-2 flex flex-wrap gap-x-4 gap-y-1">
-            <span>Формат: <b className="text-ink-700 uppercase">{f.format ?? '—'}</b></span>
-            <span>Оновлено: <b className="text-ink-700">{timeAgo(f.lastSuccessAt)}</b></span>
-            <span>Розклад: <b className="text-ink-700">{INTERVALS.find(([v]) => v === f.intervalMinutes)?.[1] ?? `${f.intervalMinutes} хв`}</b></span>
-            <span>Наступне: <b className="text-ink-700">{f.enabled ? new Date(f.nextSyncAt).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }) : '—'}</b></span>
+          <div className="text-[13px] text-ink-500 mt-1.5">
+            {f.productCount.toLocaleString('uk-UA')} товарів · оновлено {timeAgo(f.lastSuccessAt)}
+            {f.enabled ? <> · оновлюється {interval}, наступне о {nextSync}</> : ' · автооновлення на паузі'}
           </div>
-          {f.lastError && <div className="mt-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{f.lastError}</div>}
+          <div className="text-[11px] text-ink-400 font-mono mt-0.5 truncate max-w-2xl" title={`Формат: ${f.format ?? '—'}`}>{f.sourceUrl}</div>
+          {f.lastError && <FeedError error={f.lastError} hasData={f.productCount > 0} />}
         </div>
         <div className="flex gap-2">
-          <button className="btn-outline" onClick={() => setEdit(true)}>
-            <Settings className="w-4 h-4" /> Налаштування
-          </button>
-          <button
-            className="btn-outline"
-            onClick={async () => {
-              await api.post(`/api/feeds/${id}/sync`);
-              toast('Оновлення поставлено в чергу');
-              load();
-            }}
-          >
-            <RefreshCw className={`w-4 h-4 ${f.status === 'syncing' ? 'animate-spin' : ''}`} /> Оновити зараз
-          </button>
+          <MoreMenu
+            testId="feed-menu"
+            label="Дії з фідом"
+            items={[
+              { label: 'Налаштування фіду', icon: <Settings />, onClick: () => setEdit(true) },
+              {
+                label: 'Оновити товари зараз',
+                icon: <RefreshCw />,
+                hint: 'Зазвичай не потрібно: фід оновлюється сам за розкладом',
+                onClick: async () => {
+                  await api.post(`/api/feeds/${id}/sync`);
+                  toast('Оновлення поставлено в чергу');
+                  load();
+                },
+              },
+            ]}
+          />
           <button className="btn-primary" onClick={() => setCreate(true)} disabled={!f.productCount}>
             <Plus className="w-4 h-4" /> Новий дизайн
           </button>
         </div>
       </div>
 
+      <GettingStarted feed={f} designs={data.designs} onCreate={() => setCreate(true)} />
+
       <div className="inline-flex gap-1 p-1 rounded-full bg-white border border-ink-200/70 shadow-card mb-6">
         {tabs.map(([t, label, Icon]) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
+          <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t || (t === 'products' && inProducts) ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -120,6 +125,13 @@ export function FeedPage() {
           </div>
         ))}
       {tab === 'catalog' && <MetaCatalogTab feed={f} project={data.project} designs={data.designs} onSaved={load} />}
+      {inProducts && (
+        <div className="seg max-w-md mb-4" data-testid="products-sub">
+          <button data-on={tab === 'products'} onClick={() => setTab('products')}>Товари</button>
+          <button data-on={tab === 'fields'} onClick={() => setTab('fields')}>Поля · {f.fields.length}</button>
+          <button data-on={tab === 'history'} onClick={() => setTab('history')}>Історія оновлень</button>
+        </div>
+      )}
       {tab === 'products' && <ProductsTab feedId={id!} fields={f.fields} />}
       {tab === 'fields' && <FieldsTab fields={f.fields} />}
       {tab === 'history' && <HistoryTab runs={data.runs} />}
@@ -188,27 +200,16 @@ function DesignCard({ d, usage, sample, onChange, onSettings }: { d: any; usage?
         )}
       </div>
       <div className="px-5 pb-5 pt-3 flex-1 flex flex-col">
-        <div className="flex items-center justify-between gap-2">
-          <div className="font-semibold truncate">{d.name}</div>
-          <label className="flex items-center gap-1.5 text-xs text-ink-500 shrink-0" title="Оновлювати й віддавати фід">
-            <input
-              type="checkbox"
-              checked={d.active}
-              onChange={async (e) => {
-                await api.patch(`/api/designs/${d.id}`, { active: e.target.checked });
-                onChange();
-              }}
-            />
-            Активний
-          </label>
+        <div className="font-semibold truncate" title={d.name}>{d.name}</div>
+        <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-ink-500">
+          <span>{fmt?.label ?? d.formatId}</span>
+          {!d.active && <span className="chip bg-ink-100 text-ink-600 text-[11px]">Призупинено</span>}
+          {!d.isPublished && <span className="chip bg-amber-50 text-amber-700 text-[11px]">Чернетка — опублікуйте в редакторі</span>}
+          {d.hasUnpublished && d.isPublished && <span className="chip bg-amber-50 text-amber-700 text-[11px]">Є неопубліковані зміни</span>}
+          {usage && <span className="chip bg-brand-50 text-brand-700 text-[11px]">{usage}</span>}
         </div>
-        <div className="text-xs text-ink-500 mt-0.5">
-          {fmt?.label ?? d.formatId} · {d.isPublished ? `версія ${d.version}` : 'чернетка'}
-          {d.hasUnpublished && d.isPublished && <span className="text-amber-600"> · є неопубліковані зміни</span>}
-        </div>
-        {usage && <div className="mt-1.5 inline-flex chip bg-brand-50 text-brand-700 text-[11px]">{usage}</div>}
-        <div className="flex items-center gap-2 mt-3">
-          <StatusBadge status={d.renderStatus} />
+        <div className="flex items-center gap-2 mt-3 min-h-[22px]">
+          {d.isPublished && <StatusBadge status={d.renderStatus} />}
           {d.renderStatus === 'rendering' && (
             <div className="flex-1 h-1.5 bg-ink-100 rounded-full overflow-hidden">
               <div className="h-full bg-brand-500 transition-all" style={{ width: `${d.renderProgress}%` }} />
@@ -221,7 +222,7 @@ function DesignCard({ d, usage, sample, onChange, onSettings }: { d: any; usage?
                 <>
                   {' · '}
                   <button className="text-red-600 underline decoration-dotted hover:decoration-solid" onClick={() => setShowFails(true)}>
-                    {s.failed} {s.failed === 1 ? 'помилка' : s.failed < 5 ? 'помилки' : 'помилок'}
+                    {s.failed} без креативу
                   </button>
                 </>
               )}
@@ -229,10 +230,9 @@ function DesignCard({ d, usage, sample, onChange, onSettings }: { d: any; usage?
           )}
         </div>
         {d.renderError && <div className="text-xs text-red-600 mt-1">{d.renderError}</div>}
-        <Modal open={showFails} onClose={() => setShowFails(false)} title={`Товари без картинки · ${s?.failed ?? 0}`} width="max-w-2xl">
+        <Modal open={showFails} onClose={() => setShowFails(false)} title={`Товари без креативу · ${s?.failed ?? 0}`} width="max-w-2xl">
           <p className="text-sm text-ink-500 mb-3">
-            Для цих товарів не вдалося створити креатив — у вихідний фід вони потрапили з оригінальним фото, тож реклама не ламається.
-            Сервіс автоматично спробує ще раз при наступному оновленні фіду.
+            Для цих товарів не вдалося створити креатив, найчастіше через недоступне фото на сайті магазину. У вихідний фід вони потрапили з оригінальним фото, тож реклама не ламається. Feedarte спробує ще раз при наступному оновленні фіду.
           </p>
           {s?.failures?.length ? (
             <div className="divide-y divide-ink-100 max-h-[60vh] overflow-y-auto">
@@ -249,62 +249,79 @@ function DesignCard({ d, usage, sample, onChange, onSettings }: { d: any; usage?
               ))}
             </div>
           ) : (
-            <p className="text-sm">Деталі з’являться після наступного рендеру — натисніть «Перерендерити» (кнопка ↻ на картці).</p>
+            <p className="text-sm">Деталі з’являться після наступного рендеру (меню ⋯ → «Перерендерити»).</p>
           )}
         </Modal>
-        {d.isPublished && (
-          <div className="mt-3">
-            <div className="text-xs text-ink-500 mb-1">Вихідний фід для Meta / TikTok Catalog:</div>
-            <CopyField value={d.outputUrl} />
-            {d.combinedUrl && (
-              <>
-                <div className="text-xs text-ink-500 mt-2 mb-1">Об’єднаний фід з іншими форматами (CSV, для Meta):</div>
-                <CopyField value={d.combinedUrl} />
-              </>
-            )}
-          </div>
-        )}
-        <div className="flex gap-1.5 mt-4 pt-4 border-t border-ink-100">
+        <div className="flex gap-1.5 mt-auto pt-4">
           <button className="btn-primary btn-sm flex-1" onClick={() => nav(`/designs/${d.id}`)}>
             <Pencil className="w-3.5 h-3.5" /> Редагувати
           </button>
-          <button className="btn-outline btn-sm px-2" title="Налаштування вихідного фіду" onClick={onSettings}>
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="btn-outline btn-sm px-2"
-            title="Перерендерити"
-            disabled={!d.isPublished}
-            onClick={async () => {
-              await api.post(`/api/designs/${d.id}/render`);
-              toast('Рендер поставлено в чергу');
-              onChange();
-            }}
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="btn-outline btn-sm px-2"
-            title="Дублювати (для A/B-тесту)"
-            onClick={async () => {
-              await api.post(`/api/designs/${d.id}/duplicate`);
-              toast('Копію створено');
-              onChange();
-            }}
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="btn-outline btn-sm px-2 text-red-600"
-            title="Видалити"
-            onClick={async () => {
-              if (!confirm(`Видалити дизайн «${d.name}»? Вихідний фід перестане працювати.`)) return;
-              await api.del(`/api/designs/${d.id}`);
-              onChange();
-            }}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {d.isPublished && (
+            <button
+              data-testid="copy-feed-link"
+              className="btn-outline btn-sm"
+              title={d.outputUrl}
+              onClick={() => {
+                copyText(d.outputUrl);
+                try {
+                  localStorage.setItem('fa_link_copied', '1');
+                } catch {
+                  /* ignore */
+                }
+                window.dispatchEvent(new Event('fa-link-copied'));
+                toast('Посилання на фід скопійовано — вставте його в Commerce Manager або TikTok');
+              }}
+            >
+              <Link2 className="w-3.5 h-3.5" /> Посилання
+            </button>
+          )}
+          <MoreMenu
+            testId="design-menu"
+            items={[
+              { label: 'Налаштування фіду', icon: <SlidersHorizontal />, onClick: onSettings },
+              ...(d.isPublished ? [{ label: 'Відкрити фід у новій вкладці', icon: <ExternalLink />, onClick: () => window.open(d.outputUrl, '_blank') }] : []),
+              ...(d.combinedUrl ? [{ label: 'Копіювати старий об’єднаний CSV', icon: <Link2 />, onClick: () => { copyText(d.combinedUrl); toast('Скопійовано'); } }] : []),
+              {
+                label: 'Перерендерити',
+                icon: <RefreshCw />,
+                disabled: !d.isPublished,
+                onClick: async () => {
+                  await api.post(`/api/designs/${d.id}/render`);
+                  toast('Рендер поставлено в чергу');
+                  onChange();
+                },
+              },
+              {
+                label: 'Дублювати (для A/B-тесту)',
+                icon: <Copy />,
+                onClick: async () => {
+                  await api.post(`/api/designs/${d.id}/duplicate`);
+                  toast('Копію створено');
+                  onChange();
+                },
+              },
+              {
+                label: d.active ? 'Призупинити фід' : 'Відновити фід',
+                icon: d.active ? <Pause /> : <Play />,
+                hint: d.active ? 'Фід перестане оновлюватися' : undefined,
+                onClick: async () => {
+                  await api.patch(`/api/designs/${d.id}`, { active: !d.active });
+                  onChange();
+                },
+              },
+              'sep',
+              {
+                label: 'Видалити',
+                icon: <Trash2 />,
+                danger: true,
+                onClick: async () => {
+                  if (!confirm(`Видалити дизайн «${d.name}»? Його посилання на фід перестане працювати.`)) return;
+                  await api.del(`/api/designs/${d.id}`);
+                  onChange();
+                },
+              },
+            ]}
+          />
         </div>
       </div>
     </div>
@@ -491,59 +508,76 @@ function OutputSettingsModal({ design, project, feedId, fields, onClose, onSaved
   const [name, setName] = useState(design.name);
   const toast = useToast();
   return (
-    <Modal open onClose={onClose} title="Налаштування вихідного фіду" width="max-w-xl">
-      <div className="space-y-5">
+    <Modal open onClose={onClose} title="Налаштування фіду дизайну" width="max-w-xl">
+      <div className="space-y-3">
         <div>
           <label className="label">Назва дизайну</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div>
-          <div className="label">Для яких товарів генерувати креатив</div>
-          <p className="text-xs text-ink-500 mb-2">Без умов — для всіх товарів. Наприклад, лише товари зі знижкою, лише бренд Nike або лише «in stock».</p>
-          <ConditionEditor value={o.filter} onChange={(c) => setO({ ...o, filter: c })} fields={fields} actionLabels={['Включити', 'Виключити']} />
-        </div>
-        {o.filter && (
+        <Section
+          testId="sec-products"
+          title="Які товари потрапляють у фід"
+          summary={`${o.filter ? (o.mode === 'only' ? 'Лише товари за умовою' : 'За умовою, решта з оригінальним фото') : 'Усі товари'} · ${o.variants === 'one_per_group' ? 'один розмір на товар' : 'усі розміри'}`}
+        >
           <div>
-            <div className="label">Товари, що не підпадають під умову</div>
+            <div className="label">Для яких товарів генерувати креатив</div>
+            <p className="text-xs text-ink-500 mb-2">Без умов — для всіх товарів. Наприклад, лише товари зі знижкою, лише бренд Nike або лише «in stock».</p>
+            <ConditionEditor value={o.filter} onChange={(c) => setO({ ...o, filter: c })} fields={fields} actionLabels={['Включити', 'Виключити']} />
+          </div>
+          {o.filter && (
+            <div>
+              <div className="label">Товари, що не підпадають під умову</div>
+              <div className="seg">
+                <button data-on={o.mode === 'all'} onClick={() => setO({ ...o, mode: 'all' })}>Залишити з оригінальним фото</button>
+                <button data-on={o.mode === 'only'} onClick={() => setO({ ...o, mode: 'only' })}>Не включати у фід</button>
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="label">Розміри та інші варіанти товару</div>
             <div className="seg">
-              <button data-on={o.mode === 'all'} onClick={() => setO({ ...o, mode: 'all' })}>Залишити з оригінальним фото</button>
-              <button data-on={o.mode === 'only'} onClick={() => setO({ ...o, mode: 'only' })}>Не включати у фід</button>
+              <button data-testid="variants-all" data-on={(o.variants ?? 'all') === 'all'} onClick={() => setO({ ...o, variants: 'all' })}>Усі варіанти</button>
+              <button data-testid="variants-one" data-on={o.variants === 'one_per_group'} onClick={() => setO({ ...o, variants: 'one_per_group' })}>Один на групу</button>
+            </div>
+            <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
+              {o.variants === 'one_per_group'
+                ? 'З кожної групи (item_group_id) і кольору у фід потрапляє один варіант — перший, що є в наявності. Розміри S, M, L одного товару більше не показуватимуться в рекламі поруч. Для ремаркетингу краще лишити окремий фід з усіма варіантами: піксель передає ID конкретного розміру.'
+                : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
+            </p>
+          </div>
+        </Section>
+        <Section
+          testId="sec-click"
+          title="Куди веде клік по товару"
+          summary={(o.clickTarget ?? 'site') === 'direct' ? `Instagram Direct · ${(o.directMode ?? 'bridge') === 'bridge' ? 'через сторінку Feedarte' : 'пряме посилання ig.me'}` : 'Сайт магазину'}
+        >
+          <ClickTarget value={o.clickTarget ?? 'site'} onChange={(v) => setO({ ...o, clickTarget: v })} mode={o.directMode ?? 'bridge'} onMode={(v) => setO({ ...o, directMode: v })} project={project} feedId={feedId} designId={design.id} onProjectSaved={onSaved} />
+        </Section>
+        <Section testId="sec-images" title="Зображення" summary={`${o.imageFormat === 'png' ? 'PNG' : `JPG, якість ${o.quality}`}${o.keepOriginalAsAdditional ? ' · з оригінальним фото' : ''}`}>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={o.keepOriginalAsAdditional} onChange={(e) => setO({ ...o, keepOriginalAsAdditional: e.target.checked })} />
+            <span>
+              Залишати оригінальне фото товару поруч із креативом
+              <span className="block text-xs text-ink-500">Поле additional_image_link. Meta може використати його в деяких форматах.</span>
+            </span>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Формат зображень</label>
+              <select className="input" value={o.imageFormat} onChange={(e) => setO({ ...o, imageFormat: e.target.value })}>
+                <option value="jpg">JPG (рекомендовано)</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Якість JPG: {o.quality}</label>
+              <input type="range" min={60} max={100} value={o.quality} onChange={(e) => setO({ ...o, quality: Number(e.target.value) })} className="w-full mt-3" />
             </div>
           </div>
-        )}
-        <div>
-          <div className="label">Розміри та інші варіанти товару</div>
-          <div className="seg">
-            <button data-testid="variants-all" data-on={(o.variants ?? 'all') === 'all'} onClick={() => setO({ ...o, variants: 'all' })}>Усі варіанти</button>
-            <button data-testid="variants-one" data-on={o.variants === 'one_per_group'} onClick={() => setO({ ...o, variants: 'one_per_group' })}>Один на групу</button>
-          </div>
-          <p className="text-xs text-ink-500 mt-1.5 leading-relaxed">
-            {o.variants === 'one_per_group'
-              ? 'З кожної групи (item_group_id) і кольору у фід потрапляє один варіант — перший, що є в наявності. Розміри S, M, L одного товару більше не показуватимуться в рекламі поруч. Для ремаркетингу краще лишити окремий фід з усіма варіантами: піксель передає ID конкретного розміру.'
-              : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
-          </p>
-        </div>
-        <ClickTarget value={o.clickTarget ?? 'site'} onChange={(v) => setO({ ...o, clickTarget: v })} mode={o.directMode ?? 'bridge'} onMode={(v) => setO({ ...o, directMode: v })} project={project} feedId={feedId} designId={design.id} onProjectSaved={onSaved} />
-        <div className="rounded-2xl bg-ink-50 border border-ink-100 px-4 py-3 text-[13px] text-ink-600 leading-relaxed">
-          Потрібно кілька дизайнів або стрічку + сторіз в одному каталозі Meta? Це налаштовується на рівні фіду: вкладка <b>«Meta-каталог»</b>.
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={o.keepOriginalAsAdditional} onChange={(e) => setO({ ...o, keepOriginalAsAdditional: e.target.checked })} />
-          Додавати оригінальне фото в additional_image_link
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Формат зображень</label>
-            <select className="input" value={o.imageFormat} onChange={(e) => setO({ ...o, imageFormat: e.target.value })}>
-              <option value="jpg">JPG (рекомендовано)</option>
-              <option value="png">PNG</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Якість JPG: {o.quality}</label>
-            <input type="range" min={60} max={100} value={o.quality} onChange={(e) => setO({ ...o, quality: Number(e.target.value) })} className="w-full mt-3" />
-          </div>
-        </div>
+        </Section>
+        <p className="text-[12px] text-ink-500 leading-relaxed px-1">
+          Кілька дизайнів або стрічка + сторіз в одному каталозі Meta налаштовуються на рівні фіду, у вкладці <b>«Meta-каталог»</b>.
+        </p>
         <button
           className="btn-primary w-full"
           onClick={async () => {
@@ -704,6 +738,91 @@ function HistoryTab({ runs }: { runs: any[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** human explanation of a feed fetch error (the raw message stays visible for support) */
+function FeedError({ error, hasData }: { error: string; hasData: boolean }) {
+  const e = error.toLowerCase();
+  const human =
+    /fetch failed|enotfound|econnrefused|timeout|aborted|network/.test(e)
+      ? 'Не вдалося завантажити фід із сайту магазину: сайт не відповів або посилання недоступне.'
+      : /404|not found/.test(e)
+        ? 'За цим посиланням фіду немає (помилка 404). Перевірте посилання в налаштуваннях фіду.'
+        : /401|403|forbidden|unauthori/.test(e)
+          ? 'Сайт магазину не пускає Feedarte до фіду (доступ заборонено). Можливо, фід захищений паролем або блокує ботів.'
+          : /xml|parse|format|розпізна/.test(e)
+            ? 'Файл за посиланням не схожий на фід товарів. Перевірте, що це XML/CSV-фід, а не сторінка сайту.'
+            : null;
+  return (
+    <div className="mt-2.5 text-sm bg-red-50 text-red-800 rounded-2xl px-4 py-2.5 max-w-2xl" data-testid="feed-error">
+      <div>{human ?? 'Останнє оновлення фіду не вдалося.'} {hasData && 'Дизайни й посилання працюють на останніх успішно завантажених товарах.'} Feedarte спробує ще раз автоматично.</div>
+      <div className="text-[11px] text-red-500 font-mono mt-0.5">{error}</div>
+    </div>
+  );
+}
+
+/** step-by-step guide until the first design is published and its link copied (dismissible) */
+function GettingStarted({ feed, designs, onCreate }: { feed: any; designs: any[]; onCreate: () => void }) {
+  const key = `fa_start_${feed.id}`;
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [copied, setCopied] = useState(() => {
+    try {
+      return localStorage.getItem('fa_link_copied') === '1';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const h = () => setCopied(true);
+    window.addEventListener('fa-link-copied', h);
+    return () => window.removeEventListener('fa-link-copied', h);
+  }, []);
+  const published = designs.some((d) => d.isPublished);
+  const steps: [boolean, string, ReactNode][] = [
+    [feed.productCount > 0, 'Фід підключено', `${feed.productCount.toLocaleString('uk-UA')} товарів завантажено`],
+    [designs.length > 0, 'Створіть дизайн', designs.length ? 'Готово' : <button className="text-brand-600 font-medium hover:underline" onClick={onCreate}>Обрати шаблон →</button>],
+    [published, 'Опублікуйте його', published ? 'Креативи згенеровано для всіх товарів' : 'У редакторі кнопка «Опублікувати» вгорі праворуч'],
+    [published && copied, 'Підключіть посилання в Meta або TikTok', <span>Кнопка «Посилання» на картці дизайну → <Link to="/help/meta-connect" className="text-brand-600 hover:underline">як підключити</Link></span>],
+  ];
+  const done = steps.filter(([d]) => d).length;
+  if (hidden || done === steps.length) return null;
+  return (
+    <div className="island p-5 mb-6" data-testid="getting-started">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="font-semibold">З чого почати · {done} з {steps.length}</div>
+        <button
+          className="text-xs text-ink-400 hover:text-ink-700"
+          onClick={() => {
+            try {
+              localStorage.setItem(key, '1');
+            } catch {
+              /* ignore */
+            }
+            setHidden(true);
+          }}
+        >
+          Сховати
+        </button>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {steps.map(([ok, title, text], i) => (
+          <div key={i} className={`rounded-2xl border px-3.5 py-3 ${ok ? 'border-emerald-200 bg-emerald-50/50' : i === done ? 'border-brand-300 bg-brand-50/40' : 'border-ink-100'}`}>
+            <div className="flex items-center gap-2 text-[13px] font-medium text-ink-900">
+              <span className={`w-5 h-5 rounded-full text-[11px] flex items-center justify-center shrink-0 ${ok ? 'bg-emerald-500 text-white' : 'bg-ink-100 text-ink-500'}`}>{ok ? '✓' : i + 1}</span>
+              {title}
+            </div>
+            <div className="text-[12px] text-ink-500 mt-1 leading-snug">{text}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -822,7 +822,7 @@ function CanvasProps({ doc, fields, setDoc }: Props) {
           <Seg value={bg.imageFit ?? 'cover'} onChange={(v) => setDoc((d) => ({ ...d, background: { ...d.background, imageFit: v } }))} options={[{ v: 'cover', label: 'Заповнити' }, { v: 'contain', label: 'Вписати' }]} />
         )}
       </Section>
-      <Section title="Формат цін">
+      <Section title="Формат цін" defaultOpen={false}>
         <Row label="Валюта">
           <input className="ed-input" value={f.currencyLabel} onChange={(e) => setFormat({ currencyLabel: e.target.value })} placeholder="грн, ₴, UAH" />
         </Row>

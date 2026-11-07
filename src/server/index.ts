@@ -195,6 +195,8 @@ async function main() {
   if (fs.existsSync(env.webDir)) {
     app.get('/assets/*', serveFrom(path.join(env.webDir, 'assets'), () => ({ 'cache-control': longCache })));
     app.get('/favicon.svg', (_req, reply) => reply.sendFile('favicon.svg', env.webDir));
+    // knowledge-base screenshots and animations
+    app.get('/help-media/*', serveFrom(path.join(env.webDir, 'help-media'), () => ({ 'cache-control': 'public, max-age=86400' })));
   }
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/') || req.method !== 'GET' || !fs.existsSync(env.webDir)) return reply.status(404).send({ error: 'Не знайдено' });

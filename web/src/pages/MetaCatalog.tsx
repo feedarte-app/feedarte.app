@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, LayoutGrid, Smartphone, Square, RectangleVertical, RectangleHorizontal, CircleHelp, Check, Loader2, AlertTriangle, ChevronDown, Wand2 } from 'lucide-react';
 import { api, timeAgo } from '../api';
-import { CopyField, useToast } from '../ui';
+import { CopyField, Section, useToast } from '../ui';
 import { ClickTarget } from './ClickTarget';
 
 type Item = { no: number; designId: string | null; name?: string };
@@ -115,7 +115,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
               <LayoutGrid className="w-5 h-5 text-brand-500" /> Meta-каталог: усі дизайни в одному посиланні
             </h2>
             <p className="text-[14px] text-ink-600 mt-2 leading-relaxed">
-              Один каталог у Commerce Manager замість окремого на кожен дизайн. Товари мають справжні ID, тому піксель працює з одним каталогом. Кожен дизайн будь-якого формату отримує свій <b>номер картинки</b>. В оголошенні шаблон Meta обирає, який номер показувати в стрічці, а який у сторіз, і їх можна комбінувати як завгодно.
+              {c.enabled ? 'Одне посилання на всі дизайни фіду. Дизайн для оголошення обирається шаблоном Meta за номером картинки.' : <>Один каталог у Commerce Manager замість окремого на кожен дизайн. Товари мають справжні ID, тому піксель працює з одним каталогом. Кожен дизайн будь-якого формату отримує свій <b>номер картинки</b>. В оголошенні шаблон Meta обирає, який номер показувати в стрічці, а який у сторіз, і їх можна комбінувати як завгодно.</>}
             </p>
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -132,7 +132,12 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
           </label>
         </div>
 
-        <div className="mt-5 rounded-2xl bg-ink-50 border border-ink-100 p-4">
+        <div className="mt-4">
+          <button data-testid="cat-howto" className="text-[13px] font-medium text-brand-600 flex items-center gap-1" onClick={() => setHowto((v) => !v)}>
+            <ChevronDown className={`w-4 h-4 transition ${howto ? 'rotate-180' : ''}`} /> Як це працює і як налаштувати в Meta
+          </button>
+          {howto && (
+            <div className="mt-3 rounded-2xl bg-ink-50 border border-ink-100 p-4">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400 mb-2.5">Що всередині кожного товару</div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="chip bg-white border border-ink-200 text-ink-700 font-mono">id: 48966771540219</span>
@@ -150,10 +155,6 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
             ))}
             <span className="text-ink-400 text-sm">…</span>
           </div>
-          <button className="mt-3 text-[13px] font-medium text-brand-600 flex items-center gap-1" onClick={() => setHowto((v) => !v)}>
-            <ChevronDown className={`w-4 h-4 transition ${howto ? 'rotate-180' : ''}`} /> Як налаштувати в Meta (4 кроки)
-          </button>
-          {howto && (
             <ol className="mt-2 space-y-1.5 text-[13px] text-ink-700 list-decimal pl-5 leading-relaxed">
               <li>Увімкніть Meta-каталог, додайте дизайни (кожен отримає номер) і натисніть «Зберегти».</li>
               <li>Скопіюйте посилання → Commerce Manager → <b>Data sources → Data feed → Scheduled feed</b>, оновлення щогодини.</li>
@@ -164,6 +165,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
                 В оголошенні: <b>Image template → Choose template</b>. Без шаблону Meta бере <b>№0</b>, а з <b>Image touch-ups</b> (формат Single image) у сторіз ставить дизайн, позначений «Сторіз без шаблону».
               </li>
             </ol>
+            </div>
           )}
           <Link to="/help/meta-catalog" className="mt-2 inline-flex items-center gap-1 text-[12px] text-ink-500 hover:text-ink-800">
             <CircleHelp className="w-3.5 h-3.5" /> Детально з прикладами в базі знань
@@ -261,11 +263,9 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
 
           {/* template helper */}
           {inCatalog.length > 1 && (
-            <div className="card p-5" data-testid="cat-helper">
-              <div className="text-sm font-semibold flex items-center gap-2">
-                <Wand2 className="w-4 h-4 text-brand-500" /> Підказка для шаблону Meta
-              </div>
-              <div className="text-[12px] text-ink-500 mb-3">Оберіть, що показувати в стрічці й у сторіз, і впишіть ці номери на вкладках шаблону.</div>
+            <div className="card p-1" data-testid="cat-helper">
+              <Section title="Підібрати номери для шаблону Meta" summary="Оберіть дизайн для стрічки й для сторіз, і побачите, які Image number вписати">
+              <div className="text-[12px] text-ink-500 flex items-center gap-1.5"><Wand2 className="w-3.5 h-3.5 text-brand-500" /> Впишіть ці номери на вкладках шаблону в Commerce Manager → Image templates.</div>
               <div className="grid md:grid-cols-[1fr_1fr_260px] gap-3 items-start">
                 <div>
                   <div className="label">У стрічці</div>
@@ -300,6 +300,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
                   ))}
                 </div>
               </div>
+              </Section>
             </div>
           )}
 

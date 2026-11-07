@@ -1,11 +1,11 @@
 import { Plus, X } from 'lucide-react';
 import type { Condition, ConditionRule, FeedField } from '../../../src/shared/types';
-import { COMPUTED_FIELDS, OPS } from '../../../src/shared/fields';
+import { COMPUTED_FIELDS, OPS , FIELD_NAMES } from '../../../src/shared/fields';
 
 export function fieldOptions(fields: FeedField[]) {
   return [
     ...COMPUTED_FIELDS.map((f) => ({ key: f.key, label: `${f.label}` })),
-    ...fields.map((f) => ({ key: f.key, label: f.key })),
+    ...fields.map((f) => ({ key: f.key, label: FIELD_NAMES[f.key] ? `${FIELD_NAMES[f.key]} (${f.key})` : f.key })),
   ];
 }
 

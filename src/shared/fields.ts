@@ -65,6 +65,16 @@ function saleActive(p: ProductData, now: number): boolean {
 }
 
 /** Computed (virtual) fields available in templates and conditions. */
+/** human names for common feed fields (UI only; the technical key stays visible as a hint) */
+export const FIELD_NAMES: Record<string, string> = {
+  title: 'Назва', brand: 'Бренд', description: 'Опис', product_type: 'Категорія', google_product_category: 'Категорія Google',
+  price: 'Ціна (як у фіді)', sale_price: 'Ціна зі знижкою (як у фіді)', availability: 'Наявність', condition: 'Стан', color: 'Колір',
+  size: 'Розмір', gender: 'Стать', age_group: 'Вік', material: 'Матеріал', pattern: 'Візерунок', link: 'Посилання на товар',
+  id: 'ID товару', item_group_id: 'ID групи', gtin: 'Штрихкод (GTIN)', mpn: 'Артикул (MPN)', sku: 'Артикул',
+  custom_label_0: 'Мітка 0', custom_label_1: 'Мітка 1', custom_label_2: 'Мітка 2', custom_label_3: 'Мітка 3', custom_label_4: 'Мітка 4',
+  image_link: 'Головне фото', additional_image_link: 'Додаткові фото', shipping: 'Доставка', quantity: 'Кількість',
+};
+
 export const COMPUTED_FIELDS: { key: string; label: string; hint: string }[] = [
   { key: 'current_price_fmt', label: 'Поточна ціна', hint: 'Ціна зі знижкою, якщо є, інакше звичайна' },
   { key: 'price_fmt', label: 'Ціна (формат.)', hint: 'Звичайна ціна з валютою' },

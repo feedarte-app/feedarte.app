@@ -40,6 +40,24 @@ function Body({ src }: { src: string }) {
             </Fragment>
           );
         }
+        // ![caption](/help/file.webp) — screenshot or animation
+        if (lines.every((l) => /^!\[[^\]]*\]\([^)]+\)$/.test(l.trim()))) {
+          return (
+            <div key={bi} className="grid gap-4">
+              {lines.map((l, i) => {
+                const [, alt, src] = l.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/)!;
+                return (
+                  <figure key={i} className="m-0">
+                    <a href={src} target="_blank" rel="noreferrer" title="Відкрити в повному розмірі">
+                      <img src={src} alt={alt} loading="lazy" className="w-full rounded-2xl border border-ink-200/70 shadow-card bg-ink-50" />
+                    </a>
+                    {alt && <figcaption className="text-[12px] text-ink-500 mt-1.5 text-center">{alt}</figcaption>}
+                  </figure>
+                );
+              })}
+            </div>
+          );
+        }
         if (lines.every((l) => l.startsWith('- '))) return <ul key={bi} className="list-disc pl-5 space-y-1.5">{lines.map((l, i) => <li key={i}>{inline(l.slice(2))}</li>)}</ul>;
         if (lines.every((l) => /^\d+\. /.test(l))) return <ol key={bi} className="list-decimal pl-5 space-y-1.5">{lines.map((l, i) => <li key={i}>{inline(l.replace(/^\d+\. /, ''))}</li>)}</ol>;
         if (lines[0].startsWith('> ') || lines[0].startsWith('! ')) {

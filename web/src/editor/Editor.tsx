@@ -504,7 +504,7 @@ function Editor({ meta }: { meta: any }) {
 
   const discard = async () => {
     if (!published) return;
-    if (!confirm('Скасувати всі неопубліковані зміни й повернутися до опублікованої версії?')) return;
+    if (!confirm('Відкотити всі неопубліковані зміни й повернутися до опублікованої версії? Цю дію не можна скасувати.')) return;
     const r = await api.post(`/api/designs/${design.id}/discard`);
     reset(r.doc);
     setSelectedId(null);
@@ -522,11 +522,11 @@ function Editor({ meta }: { meta: any }) {
           <div className="text-[11px] text-ink-500 truncate">{meta.project.name} · {feed.name}</div>
         </div>
         <div className="flex-1 flex items-center justify-center gap-3">
-          <div className="seg seg-accent w-[310px] border border-ink-200/70 bg-white">
-            <button data-on={ghost} onClick={() => setGhost(true)}>Всі умови</button>
-            <button data-on={!ghost} onClick={() => setGhost(false)}>Активні елементи</button>
+          <div className="seg seg-accent w-[290px] border border-ink-200/70 bg-white" title="«Усі шари» — показує напівпрозорими й ті елементи, які для цього товару приховані умовою, щоб їх можна було редагувати. «Як у рекламі» — рівно те, що побачить покупець.">
+            <button data-on={ghost} onClick={() => setGhost(true)}>Усі шари</button>
+            <button data-on={!ghost} onClick={() => setGhost(false)}>Як у рекламі</button>
           </div>
-          <span title="«Всі умови» — показує напівпрозорими шари, які для цього товару приховані умовою. «Активні елементи» — саме так, як буде в рекламі." className="text-ink-400">
+          <span title="«Усі шари» — показує напівпрозорими й ті елементи, які для цього товару приховані умовою. «Як у рекламі» — рівно те, що побачить покупець." className="text-ink-400">
             <Info className="w-4 h-4" />
           </span>
           <div className="flex items-center gap-0.5 ml-2">
@@ -557,7 +557,11 @@ function Editor({ meta }: { meta: any }) {
         <button className="btn-outline btn-sm h-10" onClick={() => setServerPreview(true)} disabled={!products[idx]} title="Відрендерити цей товар на сервері — саме так картинка потрапить у фід">
           <ServerCog className="w-4 h-4" /> Перевірити
         </button>
-        <button className="btn-outline text-ink-500" onClick={discard} disabled={!published || !dirtyVsPublished}>Скасувати</button>
+        {published && dirtyVsPublished && (
+          <button className="btn-outline text-ink-500" onClick={discard} title="Повернути дизайн до останньої опублікованої версії">
+            Відкотити зміни
+          </button>
+        )}
         <button className="btn-primary min-w-[130px]" onClick={publish} disabled={publishing || (!!published && !dirtyVsPublished)}>
           {publishing && <Spinner />} {published && !dirtyVsPublished ? 'Опубліковано' : 'Опублікувати'}
         </button>

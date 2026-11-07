@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Globe, MessageCircle, Loader2, Zap, Link2, Check, CircleHelp, Smartphone, QrCode } from 'lucide-react';
 import { api } from '../api';
-import { useToast } from '../ui';
+import { useToast, copyText } from '../ui';
 
 const DEFAULT_MESSAGE = 'Вітаю! Мене цікавить {title}, {price} (код {id})';
 const EVENTS: [string, string][] = [
@@ -209,7 +209,7 @@ export function ClickTarget({
                   <div>Наведіть камеру телефона на QR і натисніть на посилання. Або скопіюйте його й надішліть собі в Telegram чи Direct, а потім натисніть з телефона. Вписувати адресу вручну в браузер не можна: так iOS не відкриває застосунок.</div>
                   <div className="flex gap-2">
                     <input readOnly className="input h-8 font-mono text-[11px]" value={test.url} onFocus={(e) => e.target.select()} />
-                    <button className="btn-outline btn-sm h-8" onClick={() => { navigator.clipboard?.writeText(test.url); toast('Посилання скопійовано'); }}>Копіювати</button>
+                    <button className="btn-outline btn-sm h-8" onClick={() => { copyText(test.url); toast('Посилання скопійовано'); }}>Копіювати</button>
                   </div>
                 </div>
               </div>

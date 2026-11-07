@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Check, AlertTriangle } from 'lucide-react';
 
@@ -96,7 +96,7 @@ export function CopyField({ value }: { value: string }) {
       <button
         className={`btn-sm h-9 ${copied ? 'btn bg-emerald-50 text-emerald-700 border border-emerald-200' : 'btn-outline'}`}
         onClick={() => {
-          navigator.clipboard?.writeText(value);
+          copyText(value);
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
@@ -109,4 +109,109 @@ export function CopyField({ value }: { value: string }) {
 
 export function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`skeleton ${className}`} />;
+}
+
+export type MenuItem = { label: string; icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; hint?: string } | 'sep';
+
+/** "⋯" button with a small popover menu (secondary actions live here, not as rows of icons) */
+export function MoreMenu({ items, label = 'Ще дії', testId }: { items: MenuItem[]; label?: string; testId?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btn = useRef<HTMLButtonElement | null>(null);
+  const toggle = () => {
+    if (!open && btn.current) {
+      const r = btn.current.getBoundingClientRect();
+      // page coordinates: the menu scrolls together with the page instead of closing
+      setPos({ top: r.bottom + 6 + window.scrollY, left: Math.max(8, Math.min(r.right - 240, window.innerWidth - 248)) + window.scrollX });
+    }
+    setOpen((o) => !o);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('resize', close);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('resize', close);
+      window.removeEventListener('keydown', key);
+    };
+  }, [open]);
+  return (
+    <>
+      <button ref={btn} data-testid={testId} className="btn-outline btn-sm px-2.5" title={label} aria-label={label} aria-expanded={open} onClick={toggle}>
+        <span className="text-[18px] leading-none -mt-1.5 tracking-wider">⋯</span>
+      </button>
+      {open &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[80]" onMouseDown={() => setOpen(false)} />
+            <div className="absolute z-[81] w-60 rounded-2xl bg-white border border-ink-200/70 shadow-lift p-1.5 animate-pop-in" style={pos} role="menu">
+              {items.map((it, i) =>
+                it === 'sep' ? (
+                  <div key={i} className="h-px bg-ink-100 my-1" />
+                ) : (
+                  <button
+                    key={i}
+                    role="menuitem"
+                    disabled={it.disabled}
+                    title={it.hint}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-left disabled:opacity-40 ${it.danger ? 'text-red-600 hover:bg-red-50' : 'text-ink-700 hover:bg-ink-50'}`}
+                    onClick={() => {
+                      setOpen(false);
+                      it.onClick();
+                    }}
+                  >
+                    <span className="w-4 h-4 flex items-center justify-center shrink-0 [&>svg]:w-4 [&>svg]:h-4">{it.icon}</span>
+                    {it.label}
+                  </button>
+                ),
+              )}
+            </div>
+          </>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+/** collapsible settings section: closed it shows a one-line summary of the current value */
+export function Section({ title, summary, children, defaultOpen = false, testId }: { title: string; summary?: ReactNode; children: ReactNode; defaultOpen?: boolean; testId?: string }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl border border-ink-200/80" data-testid={testId}>
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-medium text-ink-900">{title}</div>
+          {!open && summary && <div className="text-[12px] text-ink-500 truncate mt-0.5">{summary}</div>}
+        </div>
+        <span className={`text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {open && <div className="px-4 pb-4 space-y-4">{children}</div>}
+    </div>
+  );
+}
+
+/** copy text: Clipboard API when allowed, textarea fallback otherwise (never throws) */
+export function copyText(text: string) {
+  const fallback = () => {
+    try {
+      const a = document.createElement('textarea');
+      a.value = text;
+      a.style.position = 'fixed';
+      a.style.opacity = '0';
+      document.body.appendChild(a);
+      a.select();
+      document.execCommand('copy');
+      document.body.removeChild(a);
+    } catch {
+      /* ignore */
+    }
+  };
+  try {
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(fallback);
+    else fallback();
+  } catch {
+    fallback();
+  }
 }

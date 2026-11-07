@@ -5,7 +5,7 @@ import { useState } from 'react';
 export type ViewOpts = { crop: boolean; stories: boolean; reels: boolean; rulers: boolean };
 export type UserGuide = { axis: 'x' | 'y'; pos: number };
 
-export const DEFAULT_VIEW: ViewOpts = { crop: true, stories: false, reels: false, rulers: false };
+export const DEFAULT_VIEW: ViewOpts = { crop: false, stories: false, reels: false, rulers: false };
 
 const RULER = 20; // px
 

@@ -3,7 +3,7 @@ import {
   Store, Type, Image as ImageIcon, Shapes, Layers, Plus, ChevronRight, FolderOpen, Sparkles, Eye, EyeOff, Lock, Unlock, Upload, Trash2, Search, GitBranch, Square, Circle, Minus, Triangle, Star, GripVertical, LayoutTemplate, CopyPlus, MoreHorizontal,
 } from 'lucide-react';
 import type { DesignDoc, FeedField, Layer, LayerGroup, LogoMaps, ProductData } from '../../../src/shared/types';
-import { COMPUTED_FIELDS, ProductContext, renderTemplate } from '../../../src/shared/fields';
+import { COMPUTED_FIELDS, ProductContext, renderTemplate , FIELD_NAMES } from '../../../src/shared/fields';
 import { makeIcon, makeImage, makeShape, makeText, IF_DISCOUNT, makePriceBlock, makeDiscountBadge } from '../../../src/shared/layers';
 import { LogoLibrary } from './LogoLibrary';
 import type { LayerActions } from './ContextMenu';
@@ -96,7 +96,7 @@ function FieldCard({ label, value, onAdd, image }: { label: string; value: strin
       ) : (
         <>
           <span className="text-[13px] font-semibold text-ink-900 leading-tight">{label}</span>
-          <span className="text-[12px] text-ink-500 mt-1 line-clamp-2 break-all leading-tight">{value || '—'}</span>
+          <span className="text-[12px] text-ink-500 mt-1 line-clamp-2 break-words leading-tight">{value || '—'}</span>
         </>
       )}
       <span className="absolute right-2 bottom-2 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-ink-500 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 group-hover:text-brand-600 transition-all">
@@ -112,7 +112,7 @@ function center(doc: DesignDoc, w: number, h: number) {
 
 function ProductTab({ doc, fields, product, addLayer }: Props) {
   const ctx = useMemo(() => new ProductContext(product ?? {}, doc.format), [product, doc.format]);
-  const labelOf = (k: string) => COMPUTED_FIELDS.find((f) => f.key === k)?.label ?? k;
+  const labelOf = (k: string) => COMPUTED_FIELDS.find((f) => f.key === k)?.label ?? FIELD_NAMES[k] ?? k;
   const keys = fields.map((f) => f.key);
   const images: { key: string; idx: number; url: string }[] = [];
   for (const k of keys.filter((k) => IMAGE_KEYS.includes(k))) ctx.images(k).forEach((url, idx) => images.push({ key: k, idx, url }));
