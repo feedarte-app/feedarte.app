@@ -523,7 +523,7 @@ function OutputSettingsModal({ design, project, feedId, fields, onClose, onSaved
               : 'Кожен розмір — окрема позиція, як у вашому фіді. У каруселі можуть трапитися однакові картки різних розмірів.'}
           </p>
         </div>
-        <ClickTarget value={o.clickTarget ?? 'site'} onChange={(v) => setO({ ...o, clickTarget: v })} mode={o.directMode ?? 'bridge'} onMode={(v) => setO({ ...o, directMode: v })} project={project} feedId={feedId} onProjectSaved={onSaved} />
+        <ClickTarget value={o.clickTarget ?? 'site'} onChange={(v) => setO({ ...o, clickTarget: v })} mode={o.directMode ?? 'bridge'} onMode={(v) => setO({ ...o, directMode: v })} project={project} feedId={feedId} designId={design.id} onProjectSaved={onSaved} />
         <div className="rounded-2xl bg-ink-50 border border-ink-100 px-4 py-3 text-[13px] text-ink-600 leading-relaxed">
           Потрібно кілька дизайнів або стрічку + сторіз в одному каталозі Meta? Це налаштовується на рівні фіду: вкладка <b>«Meta-каталог»</b>.
         </div>

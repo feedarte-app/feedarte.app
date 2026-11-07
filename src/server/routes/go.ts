@@ -118,7 +118,8 @@ export async function goRoutes(app: FastifyInstance) {
     const settings = p?.direct ?? {};
     const productId = pid.slice(0, 200);
     const [prod] = await sql<{ data: ProductData }[]>`select data from products where feed_id = ${t.feedId} and external_id = ${productId} limit 1`;
-    if (prod) {
+    const isTest = (req.query as Record<string, string>).test === '1';
+    if (prod && !isTest) {
       sql`insert into link_clicks (feed_id, external_id, day, n) values (${t.feedId}, ${productId}, current_date, 1)
           on conflict (feed_id, external_id, day) do update set n = link_clicks.n + 1`.catch(() => {});
     }
@@ -138,11 +139,11 @@ export async function goRoutes(app: FastifyInstance) {
     const fbc = q.fbclid ? `fb.1.${Date.now()}.${q.fbclid}` : null;
     const pageUrl = `${env.publicUrl}${req.url}`;
     const price = prod ? priceValue(prod.data) : null;
-    if (pixelId && settings.capiToken) {
+    if (pixelId && settings.capiToken && !isTest) {
       sendCapi(pixelId, settings.capiToken, { name: eventName, id: eventId, url: pageUrl, ip: req.ip, ua: String(req.headers['user-agent'] ?? ''), fbc, productId, title: one(data['title']), price });
     }
     let beacon = '';
-    if (pixelId) {
+    if (pixelId && !isTest) {
       const tr = new URLSearchParams({ id: pixelId, ev: eventName, dl: pageUrl, eid: eventId, noscript: '1' });
       tr.set('cd[content_ids]', JSON.stringify([productId]));
       tr.set('cd[content_type]', 'product');

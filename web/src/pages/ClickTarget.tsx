@@ -1,7 +1,7 @@
 // "Where do clicks lead": shop website or Instagram Direct — via Feedarte's instant /go page (click count per product,
 // Meta pixel event for optimisation) or a plain ig.me link. Project-level: Instagram profile, prefilled message, pixel.
 import { useEffect, useState } from 'react';
-import { Globe, MessageCircle, Loader2, Zap, Link2, Check, CircleHelp } from 'lucide-react';
+import { Globe, MessageCircle, Loader2, Zap, Link2, Check, CircleHelp, Smartphone, QrCode } from 'lucide-react';
 import { api } from '../api';
 import { useToast } from '../ui';
 
@@ -22,6 +22,7 @@ export function ClickTarget({
   onMode,
   project,
   feedId,
+  designId,
   onProjectSaved,
 }: {
   value: 'site' | 'direct';
@@ -30,6 +31,8 @@ export function ClickTarget({
   onMode: (v: 'bridge' | 'link') => void;
   project: { id: string; instagram: string | null; direct?: Direct };
   feedId: string;
+  /** design whose XML link to test; omitted = the feed's Meta catalog */
+  designId?: string;
   onProjectSaved?: () => void;
 }) {
   const toast = useToast();
@@ -37,6 +40,19 @@ export function ClickTarget({
   const initial: Direct = { message: '', pixelId: '', capiToken: '', eventName: '', ...(project.direct ?? {}) };
   const [d, setD] = useState<Direct>(initial);
   const [saving, setSaving] = useState(false);
+  const [test, setTest] = useState<{ url: string; svg: string; product: string } | null>(null);
+  const [testBusy, setTestBusy] = useState(false);
+  const loadTest = async () => {
+    setTestBusy(true);
+    try {
+      setTest(await api.get(`/api/feeds/${feedId}/direct-test?mode=${mode}${designId ? `&designId=${designId}` : ''}`));
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setTestBusy(false);
+    }
+  };
+  useEffect(() => setTest(null), [mode, value]);
   const [stats, setStats] = useState<{ d7: number; d30: number; top: { id: string; title: string | null; n: number }[] } | null>(null);
   useEffect(() => setIg(project.instagram ?? ''), [project.instagram]);
   useEffect(() => setD({ message: '', pixelId: '', capiToken: '', eventName: '', ...(project.direct ?? {}) }), [JSON.stringify(project.direct)]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -169,6 +185,35 @@ export function ClickTarget({
                 <CircleHelp className="w-3.5 h-3.5" /> Як налаштувати кампанію
               </a>
             </div>
+          </div>
+
+          {/* test on phone */}
+          <div className="rounded-2xl border border-ink-200 p-4" data-testid="ct-test">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[13px] font-medium text-ink-800 flex items-center gap-1.5">
+                  <Smartphone className="w-4 h-4 text-brand-500" /> Перевірити на телефоні
+                </div>
+                <div className="text-[11px] text-ink-500 mt-0.5 leading-snug">Справжнє посилання першого товару в режимі «{mode === 'bridge' ? 'Через сторінку Feedarte' : 'Пряме посилання ig.me'}». Тестові переходи не враховуються в статистиці й не надсилають подію в піксель.</div>
+              </div>
+              <button data-testid="ct-test-btn" className="btn-outline btn-sm shrink-0" disabled={testBusy} onClick={loadTest}>
+                {testBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />} {test ? 'Оновити' : 'Показати QR'}
+              </button>
+            </div>
+            {projectDirty && <div className="text-[11px] text-amber-600 mt-2">Збережіть налаштування Direct: тест бере збережені профіль і повідомлення.</div>}
+            {test && (
+              <div className="mt-3 flex flex-wrap gap-4 items-start">
+                <div className="w-40 h-40 rounded-xl border border-ink-100 bg-white p-1.5 shrink-0 [&>svg]:w-full [&>svg]:h-full" data-testid="ct-qr" dangerouslySetInnerHTML={{ __html: test.svg }} />
+                <div className="flex-1 min-w-[220px] space-y-2 text-[12px] text-ink-600 leading-snug">
+                  <div>Товар: <b className="text-ink-900">{test.product}</b></div>
+                  <div>Наведіть камеру телефона на QR і натисніть на посилання. Або скопіюйте його й надішліть собі в Telegram чи Direct, а потім натисніть з телефона. Вписувати адресу вручну в браузер не можна: так iOS не відкриває застосунок.</div>
+                  <div className="flex gap-2">
+                    <input readOnly className="input h-8 font-mono text-[11px]" value={test.url} onFocus={(e) => e.target.select()} />
+                    <button className="btn-outline btn-sm h-8" onClick={() => { navigator.clipboard?.writeText(test.url); toast('Посилання скопійовано'); }}>Копіювати</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {mode === 'bridge' && stats && (

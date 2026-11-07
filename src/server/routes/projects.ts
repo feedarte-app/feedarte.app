@@ -1,5 +1,7 @@
 import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
-import { cleanInstagram, validInstagram } from './go';
+import { cleanInstagram, directLinkFor, validInstagram } from './go';
+import QRCode from 'qrcode';
+import type { ProductData } from '../../shared/types';
 import type { DirectSettings } from '../db/schema';
 import { MAX_NUMBER, catalogKey, catalogItems, catalogStoryDefault, ensureCatalogMaps, refreshCatalog } from '../render/catalog';
 import { projectFonts } from '../fonts';
@@ -187,6 +189,27 @@ export async function projectRoutes(app: FastifyInstance) {
       })),
       runs,
     };
+  });
+
+  // test link + QR for Direct settings: what a buyer gets for the first product of this design / the Meta catalog
+  app.get('/api/feeds/:id/direct-test', async (req) => {
+    const { feed, project } = await getFeed(req.user!, (req.params as any).id);
+    const q = z.object({ designId: z.string().uuid().optional(), mode: z.enum(['bridge', 'link']).default('bridge') }).parse(req.query);
+    const profile = cleanInstagram(project.instagram);
+    if (!validInstagram(profile)) throw new HttpError(400, 'Спершу вкажіть і збережіть профіль Instagram');
+    let tokenFor: string | null = null;
+    if (q.designId) {
+      const [d] = await db.select({ publicToken: schema.designs.publicToken }).from(schema.designs).where(and(eq(schema.designs.id, q.designId), eq(schema.designs.feedId, feed.id)));
+      tokenFor = d?.publicToken ?? null;
+    } else tokenFor = feed.catalogToken;
+    if (!tokenFor) throw new HttpError(400, 'Спершу збережіть Meta-каталог');
+    const [prod] = await sql<{ data: ProductData }[]>`select data from products where feed_id = ${feed.id} order by position limit 1`;
+    if (!prod) throw new HttpError(400, 'У фіді ще немає товарів');
+    let url = directLinkFor(q.mode, tokenFor, profile, project.direct, prod.data);
+    if (q.mode === 'bridge') url += '?test=1';
+    const svg = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#16161a', light: '#ffffff' } });
+    const t = prod.data['title'];
+    return { url, svg, product: Array.isArray(t) ? t[0] : t };
   });
 
   // clicks through /go (Instagram Direct links), per product
