@@ -61,7 +61,13 @@ async function main() {
       // CSRF: state-changing API calls must come from our own origin (cookie is SameSite=Lax too)
       if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
         const origin = req.headers.origin;
-        if (origin && new URL(origin).host !== req.headers.host) throw new HttpError(403, 'Bad origin');
+        let host: string | null = null;
+        try {
+          host = origin ? new URL(origin).host : null;
+        } catch {
+          host = '';
+        }
+        if (origin && host !== req.headers.host) throw new HttpError(403, 'Bad origin');
       }
     }
   });

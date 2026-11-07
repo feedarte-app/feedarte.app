@@ -121,9 +121,9 @@ export async function renderDesignJob(designId: string, heartbeat?: () => Promis
       let p = inFlight.get(t.name);
       if (p) {
         // another variant with identical visual output is already being rendered
-        reused++;
         const shared = await p;
-        if (!shared.ok) {
+        if (shared.ok) reused++;
+        else {
           pageItems[t.idx].image = null;
           noteFail(pageItems[t.idx].data, shared);
         }

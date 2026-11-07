@@ -29,6 +29,8 @@ export const cleanInstagram = (v: string | null | undefined) =>
 export const validInstagram = (u: string) => /^[a-z0-9._]{1,30}$/.test(u);
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+/** JSON for inline <script>: product texts must not be able to close the tag */
+const js = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] ?? '' : v ?? '').trim();
 
 export function formatPrice(d: ProductData) {
@@ -108,7 +110,8 @@ function sendCapi(pixelId: string, token: string, ev: { name: string; id: string
 }
 
 export async function goRoutes(app: FastifyInstance) {
-  app.get('/go/:token/:pid', async (req, reply) => {
+  // generous per-IP limit: real buyers click a few times, bots inflating click stats get cut off
+  app.get('/go/:token/:pid', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     const { token, pid } = req.params as { token: string; pid: string };
     reply.header('cache-control', 'no-store').header('x-robots-tag', 'noindex').header('referrer-policy', 'no-referrer-when-downgrade');
     const t = /^[A-Za-z0-9_-]{8,64}$/.test(token) ? await resolveToken(token) : null;
@@ -172,7 +175,7 @@ ${title ? `<h1>${esc(title)}</h1><p class="p">${esc(prod ? formatPrice(prod.data
       // instant: the script runs in <head> before anything is painted; the card only shows if the app didn't take over
       html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title || 'Instagram Direct')}</title>
-<script>(function(){var u=${JSON.stringify(dm)},b=${JSON.stringify(beacon)};
+<script>(function(){var u=${js(dm)},b=${js(beacon)};
 function go(){location.replace(u)}
 if(b){try{var i=new Image();i.onload=i.onerror=go;i.src=b;setTimeout(go,250);}catch(e){go()}}else go();})();</script>
 <noscript><meta http-equiv="refresh" content="0;url=${esc(dm)}"></noscript>
@@ -188,7 +191,7 @@ ${card}<div class="m" id="m">${esc(msg)}</div>
 <button class="b" id="go">Скопіювати і написати в Direct</button>
 <div class="s" id="s">Повідомлення скопіюється, у чаті просто вставте його й надішліть</div>
 </div>
-<script>(function(){var u=${JSON.stringify(dm)},t=${JSON.stringify(msg)},b=${JSON.stringify(beacon)};
+<script>(function(){var u=${js(dm)},t=${js(msg)},b=${js(beacon)};
 if(b){try{new Image().src=b}catch(e){}}
 function legacy(){var a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);
 var r=document.createRange();r.selectNodeContents(a);var s=window.getSelection();s.removeAllRanges();s.addRange(r);a.setSelectionRange(0,t.length);var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(a);return ok}

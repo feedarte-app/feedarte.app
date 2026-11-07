@@ -119,7 +119,8 @@ export async function projectRoutes(app: FastifyInstance) {
       // keep the stored token when the client sends the masked placeholder
       if (body.direct.capiToken === MASK) direct.capiToken = cur?.direct?.capiToken ?? null;
     }
-    await db.update(schema.projects).set({ name: body.name, instagram, direct }).where(eq(schema.projects.id, p.id));
+    if (body.name !== undefined || instagram !== undefined || direct !== undefined)
+      await db.update(schema.projects).set({ name: body.name, instagram, direct }).where(eq(schema.projects.id, p.id));
     // links in feeds depend on the profile / message: rebuild outputs that send clicks to Direct
     if (instagram !== undefined || body.direct?.message !== undefined) {
       const ds = await sql<{ id: string }[]>`select d.id from designs d join feeds f on f.id = d.feed_id where f.project_id = ${p.id} and d.published is not null and d.output->>'clickTarget' = 'direct'`;
@@ -133,11 +134,15 @@ export async function projectRoutes(app: FastifyInstance) {
   app.delete('/api/projects/:id', async (req) => {
     const p = await getProject(req.user!, (req.params as any).id);
     const designIds = await sql`select d.id, d.public_token from designs d join feeds f on f.id = d.feed_id where f.project_id = ${p.id}`;
+    const catalogs = await sql<{ catalog_token: string | null }[]>`select catalog_token from feeds where project_id = ${p.id}`;
     await db.delete(schema.projects).where(eq(schema.projects.id, p.id));
     for (const d of designIds) {
       await storage.remove(`r/${d.id}`);
       await storage.remove(`feeds/${d.public_token}.xml`);
+      await storage.remove(`feeds/${d.public_token}.csv`).catch(() => {});
+      await removeImageMap(d.id);
     }
+    for (const c of catalogs) if (c.catalog_token) await storage.remove(catalogKey(c.catalog_token)).catch(() => {});
     return { ok: true };
   });
 
@@ -281,6 +286,8 @@ export async function projectRoutes(app: FastifyInstance) {
     for (const d of ds) {
       await storage.remove(`r/${d.id}`);
       await storage.remove(`feeds/${d.publicToken}.xml`);
+      await storage.remove(`feeds/${d.publicToken}.csv`).catch(() => {});
+      await removeImageMap(d.id);
     }
     if (feed.catalogToken) await storage.remove(catalogKey(feed.catalogToken)).catch(() => {});
     return { ok: true };
