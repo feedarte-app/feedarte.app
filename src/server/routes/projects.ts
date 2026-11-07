@@ -41,7 +41,7 @@ const token = () => crypto.randomBytes(12).toString('base64url');
 const MASK = '••••••••';
 /** direct settings for the client: never send the CAPI token back */
 function publicDirect(d: DirectSettings | null | undefined) {
-  return { message: d?.message ?? '', pixelId: d?.pixelId ?? '', capiToken: d?.capiToken ? MASK : '', eventName: d?.eventName ?? '' };
+  return { message: d?.message ?? '', pixelId: d?.pixelId ?? '', capiToken: d?.capiToken ? MASK : '', eventName: d?.eventName ?? '', bridgeStyle: d?.bridgeStyle ?? 'button' };
 }
 
 export async function projectRoutes(app: FastifyInstance) {
@@ -100,6 +100,7 @@ export async function projectRoutes(app: FastifyInstance) {
             pixelId: z.string().trim().regex(/^\d{0,20}$/, 'Pixel ID — лише цифри').nullable().optional(),
             capiToken: z.string().trim().max(400).nullable().optional(),
             eventName: z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/, 'Назва події — латиницею, без пробілів').optional(),
+            bridgeStyle: z.enum(['instant', 'button']).optional(),
           })
           .optional(),
       })

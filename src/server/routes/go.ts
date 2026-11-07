@@ -153,28 +153,48 @@ export async function goRoutes(app: FastifyInstance) {
       beacon = `https://www.facebook.com/tr?${tr.toString()}`;
     }
 
-    // instant redirect: the script runs in <head> before anything is painted; the card only appears if the app
-    // didn't take over (e.g. desktop browser)
     const title = one(data['title']);
     const img = prod ? one(prod.data['image_link']) : '';
-    const html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    const msg = prod ? directMessage(settings.message, data, productId) : '';
+    const style = settings.bridgeStyle ?? 'button';
+    const css = `body{margin:0;font:16px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#16161a;display:flex;min-height:100vh;align-items:center;justify-content:center}
+.c{max-width:340px;width:100%;padding:24px;text-align:center}
+img{width:150px;height:188px;object-fit:cover;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.10)}
+h1{font-size:17px;margin:16px 0 4px;font-weight:600}.p{color:#6b6b76;margin:0 0 18px}
+.m{background:#f4f4f6;border-radius:14px;padding:12px 14px;font-size:14px;text-align:left;margin:0 0 14px;color:#33333a}
+a.b,button.b{display:block;width:100%;border:0;cursor:pointer;font:inherit;background:linear-gradient(90deg,#f58529,#dd2a7b,#8134af);color:#fff;text-decoration:none;font-weight:600;padding:15px 18px;border-radius:14px}
+.s{font-size:13px;color:#8a8a94;margin-top:10px}.ok{color:#16a34a}`;
+    const card = `${img ? `<img src="${esc(img)}" alt="">` : ''}
+${title ? `<h1>${esc(title)}</h1><p class="p">${esc(prod ? formatPrice(prod.data) : '')}</p>` : ''}`;
+    let html: string;
+    if (style === 'instant' || !msg) {
+      // instant: the script runs in <head> before anything is painted; the card only shows if the app didn't take over
+      html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title || 'Instagram Direct')}</title>
 <script>(function(){var u=${JSON.stringify(dm)},b=${JSON.stringify(beacon)};
 function go(){location.replace(u)}
 if(b){try{var i=new Image();i.onload=i.onerror=go;i.src=b;setTimeout(go,250);}catch(e){go()}}else go();})();</script>
 <noscript><meta http-equiv="refresh" content="0;url=${esc(dm)}"></noscript>
-<style>
-body{margin:0;font:16px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#16161a;display:flex;min-height:100vh;align-items:center;justify-content:center}
-.c{max-width:340px;width:100%;padding:24px;text-align:center;opacity:0;animation:show .2s 1.2s forwards}
-@keyframes show{to{opacity:1}}
-img{width:140px;height:175px;object-fit:cover;border-radius:16px}
-h1{font-size:17px;margin:16px 0 4px;font-weight:600}.p{color:#6b6b76;margin:0 0 20px}
-a.b{display:block;background:linear-gradient(90deg,#f58529,#dd2a7b,#8134af);color:#fff;text-decoration:none;font-weight:600;padding:14px 18px;border-radius:14px}
-</style></head><body><div class="c">
-${img ? `<img src="${esc(img)}" alt="">` : ''}
-${title ? `<h1>${esc(title)}</h1><p class="p">${esc(prod ? formatPrice(prod.data) : '')}</p>` : ''}
-<a class="b" href="${esc(dm)}">Написати в Direct @${esc(ig)}</a>
+<style>${css}.c{opacity:0;animation:show .2s 1.2s forwards}@keyframes show{to{opacity:1}}</style></head><body><div class="c">
+${card}<a class="b" href="${esc(dm)}">Написати в Direct @${esc(ig)}</a>
 </div></body></html>`;
+    } else {
+      // button: Instagram ignores ?text=, so the tap copies the message (needs a user gesture) and opens the chat
+      html = `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title || 'Instagram Direct')}</title>
+<style>${css}</style></head><body><div class="c">
+${card}<div class="m" id="m">${esc(msg)}</div>
+<button class="b" id="go">Скопіювати і написати в Direct</button>
+<div class="s" id="s">Повідомлення скопіюється, у чаті просто вставте його й надішліть</div>
+</div>
+<script>(function(){var u=${JSON.stringify(dm)},t=${JSON.stringify(msg)},b=${JSON.stringify(beacon)};
+if(b){try{new Image().src=b}catch(e){}}
+function legacy(){var a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);
+var r=document.createRange();r.selectNodeContents(a);var s=window.getSelection();s.removeAllRanges();s.addRange(r);a.setSelectionRange(0,t.length);var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(a);return ok}
+document.getElementById('go').onclick=function(){try{if(navigator.clipboard)navigator.clipboard.writeText(t).catch(function(){legacy()})}catch(e){}legacy();
+var s=document.getElementById('s');s.textContent='Скопійовано! Відкриваємо чат…';s.className='s ok';setTimeout(function(){location.href=u},350)};})();</script>
+</body></html>`;
+    }
     return reply.type('text/html; charset=utf-8').send(html);
   });
 }

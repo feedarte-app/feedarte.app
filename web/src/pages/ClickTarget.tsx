@@ -13,7 +13,7 @@ const EVENTS: [string, string][] = [
   ['custom', 'Власна назва події…'],
 ];
 
-type Direct = { message: string; pixelId: string; capiToken: string; eventName: string };
+type Direct = { message: string; pixelId: string; capiToken: string; eventName: string; bridgeStyle?: 'instant' | 'button' };
 
 export function ClickTarget({
   value,
@@ -49,7 +49,7 @@ export function ClickTarget({
   const saveProject = async () => {
     setSaving(true);
     try {
-      await api.patch(`/api/projects/${project.id}`, { instagram: ig.trim() || null, direct: { message: d.message, pixelId: d.pixelId || null, capiToken: d.capiToken || null, eventName: d.eventName || 'Contact' } });
+      await api.patch(`/api/projects/${project.id}`, { instagram: ig.trim() || null, direct: { message: d.message, pixelId: d.pixelId || null, capiToken: d.capiToken || null, eventName: d.eventName || 'Contact', bridgeStyle: d.bridgeStyle ?? 'button' } });
       toast('Налаштування Direct збережено для всього проєкту');
       onProjectSaved?.();
     } catch (e) {
@@ -79,7 +79,7 @@ export function ClickTarget({
           <div className="grid sm:grid-cols-2 gap-2">
             {(
               [
-                ['bridge', Zap, 'Через миттєву сторінку Feedarte', 'Рахує кліки по товарах і передає подію в піксель, тож кампанію можна оптимізувати. Людина сторінки не бачить: одразу відкривається Direct.'],
+                ['bridge', Zap, 'Через сторінку Feedarte', 'Рахує кліки по товарах, передає подію в піксель для оптимізації і дає людині скопіювати повідомлення з назвою товару.'],
                 ['link', Link2, 'Пряме посилання ig.me', 'У фіді одразу посилання на чат. Без проміжних кроків, але без статистики кліків і без події пікселя.'],
               ] as const
             ).map(([m, Icon, t, s]) => (
@@ -107,13 +107,28 @@ export function ClickTarget({
               <label className="label">Готове повідомлення в Direct</label>
               <textarea data-testid="ct-message" className="input min-h-[64px] py-2 leading-snug" placeholder={DEFAULT_MESSAGE} value={d.message} onChange={(e) => setD({ ...d, message: e.target.value })} />
               <div className="text-[11px] text-ink-500 mt-1">
-                Змінні: <code>{'{title}'}</code> <code>{'{price}'}</code> <code>{'{id}'}</code> <code>{'{brand}'}</code>. Повідомлення підставляється в поле чату, і людині лишається натиснути «Надіслати». Код товару в тексті показує, що людина прийшла з реклами і про який товар питає.
+                Змінні: <code>{'{title}'}</code> <code>{'{price}'}</code> <code>{'{id}'}</code> <code>{'{brand}'}</code>. Код товару в тексті показує, що людина прийшла з реклами і про який товар питає.
               </div>
               <div className="mt-2 rounded-xl bg-ink-50 px-3 py-2 text-[13px] text-ink-700">
                 <span className="text-[11px] text-ink-400 block mb-0.5">Як побачить людина:</span>
                 {preview}
               </div>
             </div>
+            {mode === 'bridge' && (
+              <div>
+                <label className="label">Як відкривати Direct</label>
+                <div className="seg">
+                  <button data-testid="ct-style-button" data-on={(d.bridgeStyle ?? 'button') === 'button'} onClick={() => setD({ ...d, bridgeStyle: 'button' })}>Кнопка «Скопіювати і написати»</button>
+                  <button data-testid="ct-style-instant" data-on={d.bridgeStyle === 'instant'} onClick={() => setD({ ...d, bridgeStyle: 'instant' })}>Одразу, без кнопки</button>
+                </div>
+                <div className="text-[11px] text-ink-500 mt-1 leading-snug">
+                  {(d.bridgeStyle ?? 'button') === 'button'
+                    ? 'Людина бачить товар і повідомлення, одним натиском копіює текст і переходить у чат, де лишається вставити й надіслати. Працює в будь-якій версії Instagram.'
+                    : 'Direct відкривається миттєво, але без тексту: застосунок Instagram зараз не підставляє повідомлення з посилання. Товар можна визначити лише за міткою ref (через бот-сервіс, наприклад ManyChat).'}
+                </div>
+              </div>
+            )}
+            {mode === 'link' && <div className="text-[11px] text-amber-700 bg-amber-50 rounded-xl px-3 py-2 leading-snug">Пряме посилання відкриває чат без тексту: застосунок Instagram ігнорує повідомлення в посиланні. Щоб людина написала про конкретний товар, оберіть «Через миттєву сторінку Feedarte» з кнопкою копіювання.</div>}
             {mode === 'bridge' && (
               <div className="space-y-3 pt-1">
                 <div className="text-[13px] font-medium text-ink-800">Піксель Meta для оптимізації</div>

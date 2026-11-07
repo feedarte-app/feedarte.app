@@ -118,6 +118,8 @@ export interface DirectSettings {
   capiToken?: string | null;
   /** standard Meta event (Contact, Lead, ViewContent…) or a custom name */
   eventName?: string;
+  /** bridge page: open Direct instantly, or show the product with a "copy message & write" button (Instagram ignores ?text=) */
+  bridgeStyle?: 'instant' | 'button';
 }
 
 /** legacy (07.11 first version): pairs feed+story; converted to items on read */
