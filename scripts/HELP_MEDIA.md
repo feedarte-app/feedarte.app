@@ -12,3 +12,9 @@ Regenerate after UI changes:
    - WEBM → animated WebP: `ffmpeg -ss 2.5 -i gif-x.webm -vf "fps=10,scale=800:-1" -c:v libwebp_anim -loop 0 -quality 70 -compression_level 6 x.webp`
      (crops used: attach `crop=600:720:340:80,scale=480:-1`, rulers `crop=700:760:280:40,scale=520:-1`)
 4. Copy into `web/public/help-media/`.
+
+## Public guides on feedarte.com
+The knowledge base is also published as SEO pages at feedarte.com/guides/. After changing
+`web/src/help/articles.ts` or `web/public/help-media/`, run `npm run build:site` and commit
+the regenerated `landing/guides/`, `landing/help-media/`, `landing/sitemap.xml`.
+SEO titles/descriptions per article live in `scripts/build-site.ts` (SEO map) — add one for new articles.

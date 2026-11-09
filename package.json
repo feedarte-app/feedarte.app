@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
     "create-admin": "node dist/server/cli.js create-admin",
-    "sample-feed": "tsx scripts/sample-feed.ts"
+    "sample-feed": "tsx scripts/sample-feed.ts",
+    "build:site": "tsx scripts/build-site.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",
