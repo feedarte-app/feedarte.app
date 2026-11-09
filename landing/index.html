@@ -175,6 +175,20 @@ section{position:relative;padding:120px 0}
 .bub.card{align-self:flex-end;display:flex;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line2);border-bottom-right-radius:4px}
 .bub.card img{width:34px;height:42px;object-fit:cover;border-radius:4px}
 .ph-in{margin:0 12px 12px;height:36px;border-radius:18px;border:1px solid var(--line2);display:flex;align-items:center;padding:0 14px;font-size:12px;color:var(--ink3)}
+.dm{display:flex;align-items:center;gap:18px}
+.dm figure{display:grid;gap:12px;justify-items:center}
+.dm figcaption{color:var(--ink3);font-size:11px}
+.dm-arr{color:var(--ink3);font-size:18px}
+.phone.sm{width:200px;height:380px;border-radius:30px;padding:10px}
+.phone.sm .phone-in{border-radius:21px}
+.br{display:flex;flex-direction:column;gap:7px;padding:14px;height:100%}
+.br img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:top;border-radius:8px}
+.br b{font-size:12.5px;font-weight:600;line-height:1.3}
+.br .pr{font-size:12px;color:var(--ink2)}
+.br .msg{font-size:10.5px;line-height:1.4;color:var(--ink2);border:1px dashed var(--line2);border-radius:8px;padding:7px 8px}
+.br .cp{margin-top:auto;font-size:10.5px;font-weight:600;text-align:center;background:linear-gradient(135deg,#7C3AED,#C026D3);color:#fff;border-radius:8px;padding:9px 6px}
+.ph-in2{margin:0 10px 10px;border-radius:16px;border:1px solid var(--line2);display:flex;align-items:flex-end;gap:8px;padding:8px 8px 8px 12px;font-size:10.5px;line-height:1.4;color:var(--ink)}
+.ph-in2 b{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#7C3AED;color:#fff;font-size:12px}
 .flow{position:absolute;left:28px;top:28px;display:grid;gap:6px}
 .flow span{font-family:var(--mono);font-size:11px;color:var(--ink3);display:flex;gap:8px;align-items:center}
 .flow span i{font-style:normal;color:var(--green)}
@@ -282,6 +296,7 @@ footer a:hover{color:var(--ink)}
   .marquee figure{width:180px}
   .chips{left:16px;right:16px}
   .flow{display:none}
+  .dm{gap:8px}.dm-arr{display:none}.phone.sm{width:150px;height:300px;padding:7px;border-radius:24px}.phone.sm .phone-in{border-radius:18px}.br{padding:9px;gap:5px}.br .msg{display:none}.ph-in2{font-size:9.5px}
   footer nav{margin-left:0}
 }
 @media (prefers-reduced-motion:reduce){
@@ -509,28 +524,38 @@ footer a:hover{color:var(--ink)}
     <article class="feat rev reveal">
       <div class="feat-copy">
         <div class="num">[06] INSTAGRAM DIRECT</div>
-        <h3>Клік по рекламі — одразу в Direct з назвою товару.</h3>
-        <p>Для магазинів, що продають у переписці. Посилання товару веде в Instagram Direct, а повідомлення з назвою, ціною й кодом уже готове — покупцю лишається натиснути «Надіслати».</p>
+        <h3>Клік по рекламі — і покупець пише вам у Direct про конкретний товар.</h3>
+        <p>Для магазинів, що продають у переписці. Instagram не дозволяє підставити текст у Direct автоматично, тому покупець спершу бачить коротку сторінку товару: одним дотиком копіює готове повідомлення з назвою, ціною й кодом і потрапляє у ваш Direct — лишається вставити й надіслати. Ви одразу знаєте, про що питають.</p>
         <ul>
           <li>Подія пікселя через Conversions API для оптимізації</li>
           <li>Статистика кліків по кожному товару</li>
-          <li>QR-код для перевірки на телефоні</li>
+          <li>Або миттєвий перехід у Direct — без сторінки й без тексту</li>
         </ul>
       </div>
       <div class="feat-vis">
-        <div class="flow">
-          <span><i>●</i> click → /go/NR-2041</span>
-          <span><i>●</i> CAPI: Contact</span>
-          <span><i>●</i> ig.me/m/yourshop</span>
+        <div class="dm">
+          <figure>
+            <div class="phone sm"><div class="phone-in">
+              <div class="br">
+                <img src="/img/stage-neon-portrait.webp" alt="">
+                <b>Футболка Atelier Nine</b>
+                <span class="pr">1 547 грн</span>
+                <div class="msg">Вітаю! Мене цікавить Футболка Atelier Nine, 1 547 грн (код NR-2041)</div>
+                <span class="cp">Скопіювати і написати в Direct</span>
+              </div>
+            </div></div>
+            <figcaption class="mono">1 · сторінка товару</figcaption>
+          </figure>
+          <span class="dm-arr mono">→</span>
+          <figure>
+            <div class="phone sm"><div class="phone-in">
+              <div class="ph-top"><span class="ph-av"></span><div><b>yourshop</b><span>Instagram</span></div></div>
+              <div class="ph-body"></div>
+              <div class="ph-in2"><span>Вітаю! Мене цікавить Футболка Atelier Nine, 1 547 грн (код NR-2041)</span><b>↑</b></div>
+            </div></div>
+            <figcaption class="mono">2 · вставити й надіслати</figcaption>
+          </figure>
         </div>
-        <div class="phone"><div class="phone-in">
-          <div class="ph-top"><span class="ph-av"></span><div><b>yourshop</b><span>Instagram</span></div></div>
-          <div class="ph-body">
-            <div class="bub card"><img src="/img/stage-neon-portrait.webp" alt=""><span>Футболка Atelier Nine<br><span class="dim">1 547 грн</span></span></div>
-            <div class="bub me">Вітаю! Мене цікавить Футболка Atelier Nine, 1 547 грн (код NR-2041)</div>
-          </div>
-          <div class="ph-in">Повідомлення…</div>
-        </div></div>
       </div>
     </article>
   </div>
