@@ -60,7 +60,7 @@ export function LogoLibrary({ open, onClose, projectId, field, onChanged }: { op
             upload([...(e.dataTransfer.files ?? [])]);
           }}
         >
-          <div className="w-12 h-12 rounded-2xl bg-white shadow-card flex items-center justify-center text-brand-600 shrink-0">{busy ? <Spinner className="w-5 h-5" /> : <Upload className="w-5 h-5" />}</div>
+          <div className="w-12 h-12 rounded-2xl bg-surface shadow-card flex items-center justify-center text-brand-600 shrink-0">{busy ? <Spinner className="w-5 h-5" /> : <Upload className="w-5 h-5" />}</div>
           <div>
             <div className="font-medium text-sm">Перетягніть усі логотипи разом — ми самі розкладемо їх по брендах</div>
             <div className="text-xs text-ink-500 mt-0.5">

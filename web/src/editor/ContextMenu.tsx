@@ -72,7 +72,7 @@ export function ContextMenu({ menu, doc, actions, onClose }: { menu: MenuState; 
       ref={ref}
       role="menu"
       data-testid="ctx-menu"
-      className="fixed z-[100] min-w-[220px] rounded-2xl bg-white/95 backdrop-blur border border-ink-200/70 shadow-lift p-1.5 animate-pop-in text-[13px]"
+      className="fixed z-[100] min-w-[220px] rounded-2xl bg-surface/95 backdrop-blur border border-ink-200/70 shadow-lift p-1.5 animate-pop-in text-[13px]"
       style={{ left: pos.x, top: pos.y }}
       onContextMenu={(e) => e.preventDefault()}
     >

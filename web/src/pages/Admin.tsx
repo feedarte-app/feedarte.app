@@ -17,7 +17,7 @@ export function AdminPage() {
   return (
     <div>
       <h1 className="text-[28px] font-semibold tracking-tight mb-6">Адмін-панель</h1>
-      <div className="inline-flex gap-1 p-1 rounded-full bg-white border border-ink-200/70 shadow-card mb-6">
+      <div className="inline-flex gap-1 p-1 rounded-full bg-surface border border-ink-200/70 shadow-card mb-6">
         {tabs.map(([t, label, Icon]) => (
           <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
             <Icon className="w-4 h-4" /> {label}

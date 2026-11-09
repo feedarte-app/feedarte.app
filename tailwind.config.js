@@ -6,9 +6,11 @@ export default {
       fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
       colors: {
         // Feedarte warm orange
-        brand: { 50: '#FFF5EE', 100: '#FFE8D8', 200: '#FFD0B0', 300: '#FFB27F', 400: '#FF8A3D', 500: '#FF6B1A', 600: '#F25500', 700: '#C44400' },
-        ink: { 900: '#141416', 700: '#3D3D44', 500: '#71717A', 400: '#9A9AA3', 300: '#CDCDD3', 200: '#E6E6EA', 100: '#F1F1F4', 50: '#F7F7F9' },
-        canvas: '#F2F2F4',
+        brand: { 50: 'rgb(var(--brand-50) / <alpha-value>)', 100: 'rgb(var(--brand-100) / <alpha-value>)', 200: 'rgb(var(--brand-200) / <alpha-value>)', 300: '#FFB27F', 400: '#FF8A3D', 500: '#FF6B1A', 600: '#F25500', 700: '#C44400' },
+        // theme-aware (see web/src/index.css :root / .dark)
+        ink: Object.fromEntries([900, 800, 700, 600, 500, 400, 300, 200, 100, 50].map((k) => [k, `rgb(var(--ink-${k}) / <alpha-value>)`])),
+        canvas: 'rgb(var(--canvas) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
       },
       borderRadius: { '4xl': '2rem' },
       boxShadow: {

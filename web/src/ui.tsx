@@ -47,7 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none">
         {items.map((t) => (
           <div key={t.id} className={`flex items-center gap-2.5 rounded-full pl-2 pr-5 py-2 text-sm shadow-lift animate-slide-up ${t.kind === 'error' ? 'bg-red-600 text-white' : 'bg-ink-900 text-white'}`}>
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center ${t.kind === 'error' ? 'bg-white/20' : 'bg-brand-500'}`}>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center ${t.kind === 'error' ? 'bg-surface/20' : 'bg-brand-500'}`}>
               {t.kind === 'error' ? <AlertTriangle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
             </span>
             {t.text}
@@ -146,7 +146,7 @@ export function MoreMenu({ items, label = 'Ще дії', testId, size = 'sm' }: 
         createPortal(
           <>
             <div className="fixed inset-0 z-[80]" onMouseDown={() => setOpen(false)} />
-            <div className="absolute z-[81] w-60 rounded-2xl bg-white border border-ink-200/70 shadow-lift p-1.5 animate-pop-in" style={pos} role="menu">
+            <div className="absolute z-[81] w-60 rounded-2xl bg-surface border border-ink-200/70 shadow-lift p-1.5 animate-pop-in" style={pos} role="menu">
               {items.map((it, i) =>
                 it === 'sep' ? (
                   <div key={i} className="h-px bg-ink-100 my-1" />

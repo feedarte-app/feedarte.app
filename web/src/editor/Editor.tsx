@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff, Plus, Minus, CircleHelp } from 'lucide-react';
+import { Sparkles, X as XIcon, ArrowLeft, Undo2, Redo2, ChevronLeft, ChevronRight, Search, Info, ServerCog, Check, Loader2, CloudOff, Plus, Minus, CircleHelp, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../theme';
 import type { DesignDoc, Layer, LogoMaps, ProductData } from '../../../src/shared/types';
 import { cleanup, duplicateSet, groupOf, makeGroup, membersOf, moveBlockAbove, moveSet, pasteSnapshot, patchGroup, selectedGroup, snapshot, ungroup, type Snapshot } from './groups';
 import { uid } from '../../../src/shared/layers';
@@ -522,7 +523,7 @@ function Editor({ meta }: { meta: any }) {
           <div className="text-[11px] text-ink-500 truncate">{meta.project.name} · {feed.name}</div>
         </div>
         <div className="flex-1 flex items-center justify-center gap-3">
-          <div className="seg seg-accent w-[290px] border border-ink-200/70 bg-white" title="«Усі шари» — показує напівпрозорими й ті елементи, які для цього товару приховані умовою, щоб їх можна було редагувати. «Як у рекламі» — рівно те, що побачить покупець.">
+          <div className="seg seg-accent w-[290px] border border-ink-200/70 bg-surface" title="«Усі шари» — показує напівпрозорими й ті елементи, які для цього товару приховані умовою, щоб їх можна було редагувати. «Як у рекламі» — рівно те, що побачить покупець.">
             <button data-on={ghost} onClick={() => setGhost(true)}>Усі шари</button>
             <button data-on={!ghost} onClick={() => setGhost(false)}>Як у рекламі</button>
           </div>
@@ -554,6 +555,7 @@ function Editor({ meta }: { meta: any }) {
         <a href="/help/editor-basics" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:bg-ink-100 hover:text-ink-900" title="База знань: як працювати з редактором">
           <CircleHelp className="w-[18px] h-[18px]" />
         </a>
+        <ThemeButton />
         <button className="btn-outline btn-sm h-10" onClick={() => setServerPreview(true)} disabled={!products[idx]} title="Відрендерити цей товар на сервері — саме так картинка потрапить у фід">
           <ServerCog className="w-4 h-4" /> Перевірити
         </button>
@@ -632,7 +634,7 @@ function Editor({ meta }: { meta: any }) {
           >
             <div className="min-h-full min-w-full flex items-center justify-center px-14 pt-14 pb-24" style={{ width: 'max-content', height: 'max-content' }}>
               <div className="relative" ref={stageBox}>
-                {!view.rulers && <div className="absolute -top-6 left-0 text-[11px] font-medium text-ink-500 bg-white/80 rounded-full px-2 py-0.5">{doc.width}×{doc.height}</div>}
+                {!view.rulers && <div className="absolute -top-6 left-0 text-[11px] font-medium text-ink-500 bg-surface/80 rounded-full px-2 py-0.5">{doc.width}×{doc.height}</div>}
                 <div className={`absolute right-0 z-30 ${view.rulers ? '-top-12' : '-top-7'}`}>
                   <ViewMenu w={doc.width} h={doc.height} view={view} onView={setView} guides={userGuides.length} onClearGuides={() => setUserGuides([])} />
                 </div>
@@ -660,7 +662,7 @@ function Editor({ meta }: { meta: any }) {
             </div>
           </div>
           {/* product navigator */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-full bg-white/90 backdrop-blur border border-ink-200/70 shadow-lift z-20">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-full bg-surface/90 backdrop-blur border border-ink-200/70 shadow-lift z-20">
             <select className="ed-input w-36 rounded-full" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
               <option value="all">Усі товари</option>
               <option value="discount">Зі знижкою</option>
@@ -754,5 +756,14 @@ function ServerPreview({ designId, productId, doc }: { designId: string; product
       <img src={src} className="max-h-[70vh] border border-ink-200 rounded" alt="" />
       <a href={src} download={`preview-${productId}.jpg`} className="btn-outline btn-sm">Завантажити JPG</a>
     </div>
+  );
+}
+
+function ThemeButton() {
+  const [theme, toggle] = useTheme();
+  return (
+    <button onClick={toggle} data-testid="theme-toggle" className="w-10 h-10 rounded-full flex items-center justify-center text-ink-500 hover:bg-ink-100 hover:text-ink-900" title={theme === 'dark' ? 'Світла тема' : 'Темна тема'}>
+      {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+    </button>
   );
 }

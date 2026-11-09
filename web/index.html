@@ -4,9 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // apply saved theme before first paint (shared with feedarte.com via cookie)
+      (function () {
+        try {
+          var m = document.cookie.match(/(?:^|; )fa_theme=(light|dark)/);
+          var t = (m && m[1]) || localStorage.getItem('fa_theme') || 'light';
+          if (t === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <title>Feedarte — креативи для каталогів Meta і TikTok</title>
   </head>
-  <body class="bg-ink-50 text-ink-900 antialiased">
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

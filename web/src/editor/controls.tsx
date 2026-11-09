@@ -155,7 +155,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
         onClick={() => onChange(!checked)}
         className={`w-9 h-5 rounded-full relative transition ${checked ? 'bg-brand-500' : 'bg-ink-300'}`}
       >
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-surface shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </button>
     </label>
   );

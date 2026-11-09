@@ -152,7 +152,7 @@ function FieldInsert({ fields, onPick }: { fields: FeedField[]; onPick: (key: st
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button className="w-7 h-7 rounded-md border border-ink-200 bg-white flex items-center justify-center hover:border-brand-500" onClick={() => setOpen(!open)} title="Вставити поле">
+      <button className="w-7 h-7 rounded-md border border-ink-200 bg-surface flex items-center justify-center hover:border-brand-500" onClick={() => setOpen(!open)} title="Вставити поле">
         <Plus className="w-3.5 h-3.5" />
       </button>
       {open && (
@@ -271,7 +271,7 @@ function TextContent({ layer, fields, product, doc, focusText, setLayer }: { lay
     <Section title="Текст" right={<FieldInsert fields={fields} onPick={insert} />}>
       <textarea
         ref={ref}
-        className="w-full rounded-md bg-ink-100 p-2.5 text-[13px] font-mono outline-none border border-transparent focus:border-brand-500 focus:bg-white min-h-[64px]"
+        className="w-full rounded-md bg-ink-100 p-2.5 text-[13px] font-mono outline-none border border-transparent focus:border-brand-500 focus:bg-surface min-h-[64px]"
         value={layer.text}
         onChange={(e) => setLayer({ text: e.target.value }, `text:${layer.id}`)}
       />

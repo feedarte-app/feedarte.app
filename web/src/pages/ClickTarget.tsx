@@ -203,7 +203,7 @@ export function ClickTarget({
             {projectDirty && <div className="text-[11px] text-amber-600 mt-2">Збережіть налаштування Direct: тест бере збережені профіль і повідомлення.</div>}
             {test && (
               <div className="mt-3 flex flex-wrap gap-4 items-start">
-                <div className="w-40 h-40 rounded-xl border border-ink-100 bg-white p-1.5 shrink-0 [&>svg]:w-full [&>svg]:h-full" data-testid="ct-qr" dangerouslySetInnerHTML={{ __html: test.svg }} />
+                <div className="w-40 h-40 rounded-xl border border-ink-100 bg-surface p-1.5 shrink-0 [&>svg]:w-full [&>svg]:h-full" data-testid="ct-qr" dangerouslySetInnerHTML={{ __html: test.svg }} />
                 <div className="flex-1 min-w-[220px] space-y-2 text-[12px] text-ink-600 leading-snug">
                   <div>Товар: <b className="text-ink-900">{test.product}</b></div>
                   <div>Наведіть камеру телефона на QR і натисніть на посилання. Або скопіюйте його й надішліть собі в Telegram чи Direct, а потім натисніть з телефона. Вписувати адресу вручну в браузер не можна: так iOS не відкриває застосунок.</div>

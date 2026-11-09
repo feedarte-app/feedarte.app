@@ -18,7 +18,7 @@ export function NicheChips({ value, onChange, hasMine, compact }: { value: Niche
           key={n.id}
           type="button"
           onClick={() => onChange(n.id)}
-          className={`shrink-0 rounded-full border px-3 ${compact ? 'h-7 text-[12px]' : 'h-8 text-[13px]'} font-medium transition-colors ${value === n.id ? 'bg-ink-900 border-ink-900 text-white' : 'bg-white border-ink-200 text-ink-700 hover:border-ink-300'}`}
+          className={`shrink-0 rounded-full border px-3 ${compact ? 'h-7 text-[12px]' : 'h-8 text-[13px]'} font-medium transition-colors ${value === n.id ? 'bg-ink-900 border-ink-900 text-white' : 'bg-surface border-ink-200 text-ink-700 hover:border-ink-300'}`}
         >
           {n.label}
         </button>

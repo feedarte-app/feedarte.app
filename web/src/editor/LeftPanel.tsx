@@ -92,14 +92,14 @@ function FieldCard({ label, value, onAdd, image }: { label: string; value: strin
   return (
     <button onClick={onAdd} className="text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] p-3 relative min-h-[76px] flex flex-col group transition-all" title="Додати на полотно">
       {image ? (
-        <img src={imgProxy(image, 320)} className="w-full h-20 object-contain rounded-xl bg-white" alt="" loading="lazy" />
+        <img src={imgProxy(image, 320)} className="w-full h-20 object-contain rounded-xl bg-surface" alt="" loading="lazy" />
       ) : (
         <>
           <span className="text-[13px] font-semibold text-ink-900 leading-tight">{label}</span>
           <span className="text-[12px] text-ink-500 mt-1 line-clamp-2 break-words leading-tight">{value || '—'}</span>
         </>
       )}
-      <span className="absolute right-2 bottom-2 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-ink-500 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 group-hover:text-brand-600 transition-all">
+      <span className="absolute right-2 bottom-2 w-6 h-6 rounded-full bg-surface shadow-sm flex items-center justify-center text-ink-500 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 group-hover:text-brand-600 transition-all">
         <Plus className="w-3 h-3" />
       </span>
     </button>
@@ -276,7 +276,7 @@ function PhotoTab({ doc, projectId, addLayer, maps, onLogosChanged, fields }: Pr
     <div>
       <Title hint="Логотипи, бейджі, фони — PNG з прозорістю, SVG, JPG, WEBP. Доступні в усіх дизайнах проєкту.">Фото</Title>
       <div className="px-4 pb-4">
-        <div className="rounded-2xl bg-gradient-to-b from-brand-50 to-white border border-brand-100 p-3.5">
+        <div className="rounded-2xl bg-gradient-to-b from-brand-50 to-surface border border-brand-100 p-3.5">
           <div className="font-semibold text-[14px] flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-brand-500" /> Динамічні логотипи брендів</div>
           <p className="text-xs text-ink-500 mt-1 leading-snug">Кожен товар отримує логотип свого бренду з поля <code>{brandField}</code>. Завантажено: <b className="text-ink-700">{logoCount}</b>.</p>
           <div className="flex gap-2 mt-3">
@@ -344,7 +344,7 @@ function PhotoTab({ doc, projectId, addLayer, maps, onLogosChanged, fields }: Pr
               <img src={a.url} className="max-w-full max-h-full object-contain" alt={a.name} />
             </button>
             <button
-              className="absolute top-1 right-1 w-6 h-6 rounded bg-white/90 border border-ink-200 items-center justify-center hidden group-hover:flex text-red-600"
+              className="absolute top-1 right-1 w-6 h-6 rounded bg-surface/90 border border-ink-200 items-center justify-center hidden group-hover:flex text-red-600"
               onClick={async () => {
                 if (!confirm('Видалити зображення? Дизайни, що його використовують, втратять цей елемент.')) return;
                 await api.del(`/api/assets/${a.id}`);
@@ -427,7 +427,7 @@ function ObjectsTab({ doc, addLayer }: Props) {
               onClick={() => addLayer(makeIcon({ name: `Іконка ${name}`, icon: name, ...center(doc, Math.round(doc.width * 0.08), Math.round(doc.width * 0.08)) }))}
               className="aspect-square rounded-xl bg-ink-100 hover:bg-brand-50 active:scale-95 flex items-center justify-center transition-all"
             >
-              <img src={`/api/icons/${name}.svg?color=%23111111&sw=1.75`} className="w-6 h-6" alt={name} loading="lazy" />
+              <img src={`/api/icons/${name}.svg?color=%23111111&sw=1.75`} className="w-6 h-6 dark-invert" alt={name} loading="lazy" />
             </button>
           ))}
         </div>
@@ -531,7 +531,7 @@ function LayersTab({ doc, sel, setSel, update, actions, openMenu }: Props) {
   const iconBtn = ({ title, onClick, children, testid }: { title: string; onClick: (e: React.MouseEvent) => void; children: any; testid?: string }) => (
     <button
       data-testid={testid}
-      className="shrink-0 w-6 h-6 -my-1 rounded-lg flex items-center justify-center text-ink-400 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-ink-800 transition"
+      className="shrink-0 w-6 h-6 -my-1 rounded-lg flex items-center justify-center text-ink-400 opacity-0 group-hover:opacity-100 hover:bg-surface hover:text-ink-800 transition"
       title={title}
       onClick={(e) => {
         e.stopPropagation();
@@ -712,7 +712,7 @@ function TemplatesTab({ doc, formatId, product, applyTemplate }: Props) {
             </button>
             {!t.builtin && (
               <button
-                className="absolute top-1 right-1 w-6 h-6 rounded bg-white/90 border border-ink-200 items-center justify-center hidden group-hover:flex text-red-600"
+                className="absolute top-1 right-1 w-6 h-6 rounded bg-surface/90 border border-ink-200 items-center justify-center hidden group-hover:flex text-red-600"
                 onClick={async () => {
                   if (!confirm('Видалити шаблон?')) return;
                   await api.del(`/api/templates/${t.id}`);
@@ -734,7 +734,7 @@ export { renderTemplate };
 function SmartBlock({ title, hint, preview, onClick }: { title: string; hint: string; preview: React.ReactNode; onClick: () => void }) {
   return (
     <button onClick={onClick} className="w-full text-left rounded-2xl bg-ink-100 hover:bg-brand-50 hover:shadow-[inset_0_0_0_1px_rgba(255,107,26,.3)] active:scale-[.98] p-3 flex items-center gap-3 transition-all">
-      <div className="w-[88px] h-14 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-sm">{preview}</div>
+      <div className="w-[88px] h-14 rounded-xl bg-surface flex items-center justify-center shrink-0 shadow-sm">{preview}</div>
       <div className="min-w-0">
         <div className="text-[13px] font-semibold">{title}</div>
         <div className="text-[11px] text-ink-500 leading-snug mt-0.5">{hint}</div>

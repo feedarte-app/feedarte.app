@@ -119,7 +119,7 @@ export function Rulers({ w, h, zoom, guides, onChange }: { w: number; h: number;
       {/* top ruler → horizontal guides */}
       <div
         data-testid="ruler-top"
-        className="absolute left-0 bg-white/95 border-b border-ink-200 cursor-row-resize select-none overflow-hidden"
+        className="absolute left-0 bg-surface/95 border-b border-ink-200 cursor-row-resize select-none overflow-hidden"
         style={{ top: -RULER, height: RULER, width: w * zoom }}
         onPointerDown={(e) => start(e, 'y', null)}
         title="Потягніть вниз, щоб додати горизонтальну напрямну"
@@ -133,7 +133,7 @@ export function Rulers({ w, h, zoom, guides, onChange }: { w: number; h: number;
       {/* left ruler → vertical guides */}
       <div
         data-testid="ruler-left"
-        className="absolute top-0 bg-white/95 border-r border-ink-200 cursor-col-resize select-none overflow-hidden"
+        className="absolute top-0 bg-surface/95 border-r border-ink-200 cursor-col-resize select-none overflow-hidden"
         style={{ left: -RULER, width: RULER, height: h * zoom }}
         onPointerDown={(e) => start(e, 'x', null)}
         title="Потягніть вправо, щоб додати вертикальну напрямну"
@@ -144,7 +144,7 @@ export function Rulers({ w, h, zoom, guides, onChange }: { w: number; h: number;
           </div>
         ))}
       </div>
-      <div className="absolute bg-white border-r border-b border-ink-200" style={{ left: -RULER, top: -RULER, width: RULER, height: RULER }} />
+      <div className="absolute bg-surface border-r border-b border-ink-200" style={{ left: -RULER, top: -RULER, width: RULER, height: RULER }} />
       {/* guides */}
       {guides.map((g, i) => {
         const active = drag?.i === i;
@@ -180,7 +180,7 @@ export function ViewMenu({ w, h, view, onView, guides, onClearGuides }: { w: num
     <div className="relative" onPointerDown={(e) => e.stopPropagation()}>
       <button
         data-testid="view-menu"
-        className={`text-[11px] font-medium rounded-full px-2.5 py-0.5 border transition ${on ? 'bg-ink-900 border-ink-900 text-white' : 'bg-white/80 border-ink-200 text-ink-600 hover:border-ink-300'}`}
+        className={`text-[11px] font-medium rounded-full px-2.5 py-0.5 border transition ${on ? 'bg-ink-900 border-ink-900 text-white' : 'bg-surface/80 border-ink-200 text-ink-600 hover:border-ink-300'}`}
         onClick={() => setOpen((o) => !o)}
         title="Лінійки, напрямні, безпечні зони — видно лише в редакторі"
       >
@@ -189,7 +189,7 @@ export function ViewMenu({ w, h, view, onView, guides, onClearGuides }: { w: num
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-7 z-50 w-72 rounded-2xl bg-white border border-ink-200/70 shadow-lift p-1.5">
+          <div className="absolute right-0 top-7 z-50 w-72 rounded-2xl bg-surface border border-ink-200/70 shadow-lift p-1.5">
             {items.map((i) => (
               <label key={i.key} className="flex items-start gap-2.5 px-2.5 py-2 rounded-xl hover:bg-ink-50 cursor-pointer">
                 <input type="checkbox" data-testid={`view-${i.key}`} className="mt-0.5" checked={view[i.key]} onChange={(e) => onView({ ...view, [i.key]: e.target.checked })} />

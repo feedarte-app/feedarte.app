@@ -140,7 +140,7 @@ export function FontPicker({
       {value === family && <Check className="w-4 h-4 text-brand-600 shrink-0" />}
       {onDelete && (
         <button
-          className="w-7 h-7 -mr-1 rounded-lg flex items-center justify-center text-ink-400 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-red-600 shrink-0"
+          className="w-7 h-7 -mr-1 rounded-lg flex items-center justify-center text-ink-400 opacity-0 group-hover:opacity-100 hover:bg-surface hover:text-red-600 shrink-0"
           title="Видалити шрифт"
           onClick={(e) => {
             e.stopPropagation();
@@ -161,7 +161,7 @@ export function FontPicker({
       </button>
       {open &&
         createPortal(
-          <div ref={pop} className="fixed z-[90] w-[320px] rounded-2xl bg-white border border-ink-200/70 shadow-lift flex flex-col animate-pop-in" style={{ left: pos.left, top: pos.top, maxHeight: pos.maxH }}>
+          <div ref={pop} className="fixed z-[90] w-[320px] rounded-2xl bg-surface border border-ink-200/70 shadow-lift flex flex-col animate-pop-in" style={{ left: pos.left, top: pos.top, maxHeight: pos.maxH }}>
             <div className="p-2 border-b border-ink-100">
               <div className="relative">
                 <Search className="w-4 h-4 text-ink-400 absolute left-2.5 top-1/2 -translate-y-1/2" />

@@ -136,9 +136,9 @@ export function ProjectPage() {
               <div className="hidden md:flex -space-x-2">
                 {f.designs.slice(0, 4).map((d: any) =>
                   d.thumbnail ? (
-                    <img key={d.id} src={d.thumbnail} className="w-11 h-11 rounded-xl border-2 border-white object-cover bg-ink-100 shadow-sm" alt="" />
+                    <img key={d.id} src={d.thumbnail} className="w-11 h-11 rounded-xl border-2 border-surface object-cover bg-ink-100 shadow-sm" alt="" />
                   ) : (
-                    <div key={d.id} className="w-11 h-11 rounded-xl border-2 border-white bg-ink-100" />
+                    <div key={d.id} className="w-11 h-11 rounded-xl border-2 border-surface bg-ink-100" />
                   ),
                 )}
               </div>

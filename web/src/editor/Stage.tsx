@@ -272,7 +272,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
     <div data-stage-root className="relative shadow-[0_2px_20px_rgba(0,0,0,0.08)]" style={{ width: W, height: H }} onPointerDown={() => onPick(null, false)}>
       <canvas ref={canvasRef} style={{ width: W, height: H, display: 'block' }} />
       {loading && (
-        <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-medium text-ink-600 shadow">
+        <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 rounded-full bg-surface/90 backdrop-blur px-2.5 py-1 text-[11px] font-medium text-ink-600 shadow">
           <span className="w-3 h-3 rounded-full border-2 border-ink-300 border-t-brand-500 animate-spin" /> Завантаження фото
         </div>
       )}
@@ -315,7 +315,7 @@ export function Stage({ doc, product, zoom, ghost, maps, renderKey, selectedIds,
                     key={c}
                     data-testid={`group-handle-${c}`}
                     title="Тягніть, щоб пропорційно масштабувати всі вибрані елементи"
-                    className="absolute w-3 h-3 bg-white border-2 border-brand-500 rounded-sm pointer-events-auto"
+                    className="absolute w-3 h-3 bg-surface border-2 border-brand-500 rounded-sm pointer-events-auto"
                     style={{
                       left: c.includes('w') ? -6 : undefined,
                       right: c.includes('e') ? -6 : undefined,
@@ -385,14 +385,14 @@ function SelectionBox({ l, box, zoom, onMove, onResize, onRotate }: { l: Layer; 
               return (
                 <div
                   key={h}
-                  className="absolute w-2.5 h-2.5 bg-white border-[1.5px] border-brand-500 rounded-[2px]"
+                  className="absolute w-2.5 h-2.5 bg-surface border-[1.5px] border-brand-500 rounded-[2px]"
                   style={{ left: `calc(${px * 100}% - 5px)`, top: `calc(${py * 100}% - 5px)`, cursor, pointerEvents: 'auto' }}
                   onPointerDown={(e) => onResize(e, h)}
                 />
               );
             })}
             <div
-              className="absolute w-3 h-3 bg-white border-[1.5px] border-brand-500 rounded-full"
+              className="absolute w-3 h-3 bg-surface border-[1.5px] border-brand-500 rounded-full"
               style={{ left: 'calc(50% - 6px)', top: -26, cursor: 'grab', pointerEvents: 'auto' }}
               onPointerDown={onRotate}
               title="Повернути (Shift — крок 15°)"

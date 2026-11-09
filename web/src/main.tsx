@@ -2,7 +2,8 @@ import { TransferPage } from './pages/Transfer';
 import { StrictMode, createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, LayoutGrid, LogOut, Shield, KeyRound } from 'lucide-react';
+import { BookOpen, LayoutGrid, LogOut, Shield, KeyRound, Moon, Sun } from 'lucide-react';
+import { useTheme } from './theme';
 import { HelpPage } from './pages/Help';
 import './index.css';
 import { api } from './api';
@@ -23,6 +24,7 @@ function Shell({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const loc = useLocation();
   const [pw, setPw] = useState(false);
+  const [theme, toggleTheme] = useTheme();
   const link = (to: string, label: string, icon: ReactNode) => (
     <Link to={to} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${loc.pathname === to || (to !== '/' && loc.pathname.startsWith(to)) ? 'bg-brand-50 text-brand-700 font-medium shadow-[inset_0_0_0_1px_rgba(255,107,26,.25)]' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
       {icon}
@@ -32,7 +34,7 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-40 px-4 pt-4">
-        <div className="island max-w-7xl mx-auto px-4 h-16 flex items-center gap-6 bg-white/85 backdrop-blur-md">
+        <div className="island max-w-7xl mx-auto px-4 h-16 flex items-center gap-6 bg-surface/85 backdrop-blur-md">
           <Link to="/" className="flex items-center gap-2.5 font-semibold text-[17px] tracking-tight pl-1">
             <img src="/favicon.svg" className="w-8 h-8 drop-shadow-[0_4px_10px_rgba(255,107,26,.35)]" alt="" />
             Feedarte
@@ -49,6 +51,9 @@ function Shell({ children }: { children: ReactNode }) {
               </span>
               {user?.email}
             </span>
+            <button className="btn-ghost btn-sm" data-testid="theme-toggle" title={theme === 'dark' ? 'Світла тема' : 'Темна тема'} onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button className="btn-ghost btn-sm" title="Змінити пароль" onClick={() => setPw(true)}>
               <KeyRound className="w-4 h-4" />
             </button>

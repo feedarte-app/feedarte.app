@@ -127,7 +127,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
               className={`w-11 h-6 rounded-full relative transition ${c.enabled ? 'bg-brand-500' : 'bg-ink-200'}`}
               onClick={() => (c.enabled ? save({ ...c, enabled: false }) : enable())}
             >
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${c.enabled ? 'left-[22px]' : 'left-0.5'}`} />
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-surface shadow transition-all ${c.enabled ? 'left-[22px]' : 'left-0.5'}`} />
             </button>
           </label>
         </div>
@@ -140,7 +140,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
             <div className="mt-3 rounded-2xl bg-ink-50 border border-ink-100 p-4">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-400 mb-2.5">Що всередині кожного товару</div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="chip bg-white border border-ink-200 text-ink-700 font-mono">id: 48966771540219</span>
+            <span className="chip bg-surface border border-ink-200 text-ink-700 font-mono">id: 48966771540219</span>
             <span className="text-ink-300 mx-1">→</span>
             {[
               ['0', 'Мінімал 4:5'],
@@ -149,7 +149,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
               ['3', 'Sale 4:5'],
               ['4', 'Sale 9:16'],
             ].map(([n, l]) => (
-              <span key={n} className="chip bg-white border border-ink-200 text-ink-700">
+              <span key={n} className="chip bg-surface border border-ink-200 text-ink-700">
                 <b className="tabular-nums mr-1">№{n}</b> {l}
               </span>
             ))}
@@ -216,7 +216,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
                 return (
                   <div key={it.no} data-testid="cat-item" className="flex flex-wrap items-center gap-3 rounded-2xl border border-ink-100 bg-ink-50/50 px-3 py-2.5">
                     <NumBadge n={it.no} big />
-                    <div className="w-10 h-12 rounded-lg bg-white border border-ink-100 shrink-0 overflow-hidden flex items-center justify-center">
+                    <div className="w-10 h-12 rounded-lg bg-surface border border-ink-100 shrink-0 overflow-hidden flex items-center justify-center">
                       {d?.thumbnail ? <img src={d.thumbnail} alt="" className="max-w-full max-h-full" /> : <Icon className="w-4 h-4 text-ink-300" />}
                     </div>
                     <select data-testid="cat-design" className="input h-10 flex-1 min-w-[200px]" value={it.designId ?? ''} onChange={(e) => setItem(it.no, { designId: e.target.value || null })}>
@@ -228,7 +228,7 @@ export function MetaCatalogTab({ feed, project, designs, onSaved }: { feed: any;
                         </option>
                       ))}
                     </select>
-                    {d && <span className="chip bg-white border border-ink-200 text-ink-600"><Icon className="w-3.5 h-3.5 mr-1" />{FORMAT_LABEL[d.formatId]}</span>}
+                    {d && <span className="chip bg-surface border border-ink-200 text-ink-600"><Icon className="w-3.5 h-3.5 mr-1" />{FORMAT_LABEL[d.formatId]}</span>}
                     {it.no === 0 && <span className="chip bg-emerald-50 text-emerald-700" title="Головне фото товару: його Meta показує без шаблону">Головне фото</span>}
                     {d?.formatId === 'story' && (
                       <label className="flex items-center gap-1.5 text-[12px] text-ink-600 cursor-pointer" title="Цей 9:16 Meta сама підставить у Stories/Reels без шаблону (Image touch-ups, формат Single image)">

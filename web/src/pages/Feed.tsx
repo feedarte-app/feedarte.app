@@ -102,7 +102,7 @@ export function FeedPage() {
 
       <GettingStarted feed={f} designs={data.designs} onCreate={() => setCreate(true)} />
 
-      <div className="inline-flex gap-1 p-1 rounded-full bg-white border border-ink-200/70 shadow-card mb-6">
+      <div className="inline-flex gap-1 p-1 rounded-full bg-surface border border-ink-200/70 shadow-card mb-6">
         {tabs.map(([t, label, Icon]) => (
           <button key={t} onClick={() => setTab(t)} className={`flex items-center gap-2 px-4 h-9 rounded-full text-sm transition-all ${tab === t || (t === 'products' && inProducts) ? 'bg-ink-900 text-white font-medium shadow-sm' : 'text-ink-500 hover:text-ink-900 hover:bg-ink-100'}`}>
             <Icon className="w-4 h-4" /> {label}
@@ -457,7 +457,7 @@ function CreateDesignModal({ open, onClose, feedId, sample }: { open: boolean; o
                 <img src={preview} className="max-h-56 rounded-xl shadow-lift" alt="" />
               ) : (
                 <>
-                  <div className="w-12 h-12 rounded-2xl bg-white shadow-card flex items-center justify-center text-brand-600"><ImageUp className="w-6 h-6" /></div>
+                  <div className="w-12 h-12 rounded-2xl bg-surface shadow-card flex items-center justify-center text-brand-600"><ImageUp className="w-6 h-6" /></div>
                   <div className="text-sm font-medium">Перетягніть PNG / JPG макета або натисніть, щоб вибрати</div>
                   <div className="text-xs text-ink-500">Готовий креатив з одним товаром, до 15 МБ</div>
                 </>
