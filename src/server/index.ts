@@ -1,3 +1,4 @@
+import { startWatchdog } from './notify';
 import { goRoutes } from './routes/go';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -10,7 +11,7 @@ import path from 'node:path';
 import { ZodError } from 'zod';
 import { env } from './env';
 import { runMigrations, sqlClient } from './db';
-import { bootstrapAdmin, HttpError, loadUser } from './auth';
+import { ACCESS_EXPIRED_MSG, bootstrapAdmin, HttpError, loadUser } from './auth';
 import { authRoutes } from './routes/auth';
 import { projectRoutes } from './routes/projects';
 import { mediaRoutes } from './routes/media';
@@ -68,6 +69,8 @@ async function main() {
           host = '';
         }
         if (origin && host !== req.headers.host) throw new HttpError(403, 'Bad origin');
+        // trial / paid period over: account is read-only (feeds keep serving the last images)
+        if (req.user?.access.expired && !req.url.startsWith('/api/auth/')) throw new HttpError(402, ACCESS_EXPIRED_MSG);
       }
     }
   });
@@ -205,6 +208,7 @@ async function main() {
   });
 
   await app.listen({ port: env.port, host: env.host });
+  startWatchdog();
   console.log(`Feedarte API on :${env.port}`);
 
   const shutdown = async () => {

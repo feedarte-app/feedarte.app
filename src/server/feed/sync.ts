@@ -1,3 +1,4 @@
+import { appLink, notify, tgEsc } from '../notify';
 import crypto from 'node:crypto';
 import { eq, and, sql as dsql } from 'drizzle-orm';
 import { db, schema, sqlClient as sql } from '../db';
@@ -158,7 +159,10 @@ export async function syncFeed(feedId: string, opts: { force?: boolean; heartbea
     return stats;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const [prev] = await sql<{ status: string; name: string; email: string }[]>`select f.status, f.name, u.email from feeds f join projects p on p.id = f.project_id join users u on u.id = p.owner_id where f.id = ${feedId}`;
     await db.update(schema.feeds).set({ status: 'error', lastError: msg }).where(eq(schema.feeds.id, feedId));
+    if (prev && prev.status !== 'error')
+      notify('feedError', `⚠️ <b>Фід перестав завантажуватись</b> «${tgEsc(prev.name)}»\n${tgEsc(prev.email)}\n<code>${tgEsc(msg.slice(0, 300))}</code>\n${appLink('/feeds/' + feedId, 'Відкрити фід')}`, { key: 'feed-error:' + feedId, hours: 12 });
     await db
       .update(schema.syncRuns)
       .set({ status: 'error', finishedAt: new Date(), error: msg })
@@ -182,6 +186,9 @@ export async function scheduleDueFeeds() {
   const due = await sql<{ id: string }[]>`
     update feeds set next_sync_at = now() + make_interval(mins => interval_minutes)
     where enabled and next_sync_at <= now()
+      -- frozen accounts (trial / paid period over): no updates, outputs keep serving last images
+      and project_id not in (select p.id from projects p join users u on u.id = p.owner_id
+                             where u.role <> 'admin' and u.access_until is not null and u.access_until < now())
     returning id`;
   for (const f of due) await queueSync(f.id);
   return due.length;

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, LayoutGrid, LogOut, Shield, KeyRound, Moon, Sun } from 'lucide-react';
 import { useTheme } from './theme';
+import { tgLink, useContact } from './contact';
 import { HelpPage } from './pages/Help';
 import './index.css';
 import { api } from './api';
@@ -15,7 +16,8 @@ import { FeedPage } from './pages/Feed';
 import { AdminPage } from './pages/Admin';
 import { EditorPage } from './editor/Editor';
 
-export type User = { id: string; email: string; name: string; role: 'admin' | 'user' };
+export type Access = { plan: 'trial' | 'paid' | null; until: string | null; expired: boolean; daysLeft: number | null };
+export type User = { id: string; email: string; name: string; role: 'admin' | 'user'; access?: Access };
 const AuthCtx = createContext<{ user: User | null; setUser: (u: User | null) => void }>({ user: null, setUser: () => {} });
 export const useAuth = () => useContext(AuthCtx);
 
@@ -45,6 +47,7 @@ function Shell({ children }: { children: ReactNode }) {
             {user?.role === 'admin' && link('/admin', 'Адмін-панель', <Shield className="w-4 h-4" />)}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <TrialChip />
             <span className="hidden sm:flex items-center gap-2 text-sm text-ink-500 pr-1">
               <span className="w-8 h-8 rounded-full bg-gradient-to-b from-brand-300 to-brand-500 text-white text-xs font-semibold flex items-center justify-center">
                 {(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
@@ -71,9 +74,49 @@ function Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+      <AccessBanner />
       <main key={loc.pathname} className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 animate-fade-in">{children}</main>
       <PasswordModal open={pw} onClose={() => setPw(false)} />
     </div>
+  );
+}
+
+/** trial / paid access status: banner when ending soon or over */
+function AccessBanner() {
+  const { user } = useAuth();
+  const contact = useContact();
+  const a = user?.access;
+  if (!a || !a.until) return null;
+  const soon = !a.expired && (a.daysLeft ?? 99) <= 3;
+  if (!a.expired && !soon) return null;
+  const what = a.plan === 'trial' ? 'Безкоштовний тріал' : 'Оплачений період';
+  const date = new Date(a.until).toLocaleDateString('uk-UA');
+  const text = a.expired
+    ? `${what} закінчився ${date}. Акаунт заморожено: редагувати не можна, фіди не оновлюються, але посилання у рекламі працюють з останніми картинками.`
+    : `${what} закінчується ${date} (${a.daysLeft === 1 ? 'залишився 1 день' : `залишилось ${a.daysLeft} дн.`}). Щоб усе працювало далі, напишіть нам.`;
+  const msg = `Привіт! Я ${user!.email} у Feedarte. Хочу ${a.expired ? 'відновити' : 'продовжити'} доступ.`;
+  return (
+    <div className="px-4 pt-3" data-testid="access-banner">
+      <div className={`max-w-7xl mx-auto rounded-2xl px-5 py-3 flex flex-wrap items-center gap-3 text-sm ${a.expired ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900'}`}>
+        <span className="flex-1 min-w-[240px]">{text}</span>
+        {contact?.telegram && (
+          <a className="btn-primary btn-sm" href={tgLink(contact.telegram, msg)} target="_blank" rel="noreferrer">
+            Написати в Telegram
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TrialChip() {
+  const { user } = useAuth();
+  const a = user?.access;
+  if (!a?.until || a.expired) return null;
+  return (
+    <span className="hidden md:inline-flex chip bg-brand-50 text-brand-700" title={`Доступ до ${new Date(a.until).toLocaleDateString('uk-UA')}`} data-testid="trial-chip">
+      {a.plan === 'trial' ? 'Тріал' : 'Доступ'}: {a.daysLeft} дн.
+    </span>
   );
 }
 

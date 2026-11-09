@@ -22,6 +22,9 @@ export const users = pgTable('users', {
   status: text('status').$type<'active' | 'pending' | 'blocked'>().notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  /** 'trial' | 'paid' — null = unlimited (admin-created / legacy accounts) */
+  plan: text('plan').$type<'trial' | 'paid'>(),
+  accessUntil: timestamp('access_until', { withTimezone: true }),
 });
 
 export const sessions = pgTable(

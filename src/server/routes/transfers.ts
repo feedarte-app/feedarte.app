@@ -1,3 +1,4 @@
+import { notify as notifyTg, tgEsc } from '../notify';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
@@ -150,6 +151,7 @@ export async function transferRoutes(app: FastifyInstance) {
       return { project, prevOwner, fromUserId: t.fromUserId };
     });
     req.log.info({ projectId: result.project.id, to: me.id, action }, 'project transfer decided');
+    notifyTg('transfer', `🔁 <b>Передача проєкту ${action === 'accept' ? 'прийнята' : 'відхилена'}</b> «${tgEsc(result.project.name)}»\nДо: ${tgEsc(me.email)}`);
 
     // let the previous owner (and whoever started it) know — best effort
     if (await mailEnabled()) {

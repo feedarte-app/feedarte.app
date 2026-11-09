@@ -1,3 +1,4 @@
+import { appLink, notify, tgEsc } from '../notify';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -11,7 +12,7 @@ import {
   requireUser,
   userCount,
   verifyPassword,
-  type RegistrationMode,
+  type RegistrationMode, sessionUser, trialDays
 } from '../auth';
 
 const creds = z.object({
@@ -24,7 +25,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get('/api/auth/config', async () => {
     const mode = await getSetting<RegistrationMode>('registrationMode', 'approval');
-    return { registrationMode: (await userCount()) === 0 ? 'open' : mode };
+    return { registrationMode: (await userCount()) === 0 ? 'open' : mode, contactTelegram: await getSetting<string>('contactTelegram', ''), trialDays: await trialDays() };
   });
 
   app.post('/api/auth/register', limited, async (req, reply) => {
@@ -53,11 +54,17 @@ export async function authRoutes(app: FastifyInstance) {
         passwordHash: await hashPassword(body.password),
         role: first ? 'admin' : 'user',
         status: mode === 'approval' ? 'pending' : 'active',
+        ...(first || mode === 'approval' ? {} : { plan: 'trial' as const, accessUntil: new Date(Date.now() + (await trialDays()) * 86400000) }),
       })
       .returning();
+    if (!first) {
+      const who = `${tgEsc(u.email)}${u.name ? ` (${tgEsc(u.name)})` : ''}`;
+      if (u.status === 'pending') notify('pending', `⏳ <b>Нова реєстрація чекає підтвердження</b>\n${who}\n${appLink('/admin', 'Відкрити адмін-панель')}`);
+      else notify('register', `🎉 <b>Нова реєстрація</b>\n${who}`);
+    }
     if (u.status === 'pending') return { pending: true };
     await createSession(reply, u.id);
-    return { user: { id: u.id, email: u.email, name: u.name, role: u.role } };
+    return { user: sessionUser(u) };
   }
 
   app.post('/api/auth/login', limited, async (req, reply) => {
@@ -68,7 +75,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (u.status === 'blocked') throw new HttpError(403, 'Обліковий запис заблоковано');
     await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, u.id));
     await createSession(reply, u.id);
-    return { user: { id: u.id, email: u.email, name: u.name, role: u.role } };
+    return { user: sessionUser(u) };
   });
 
   app.post('/api/auth/logout', async (req, reply) => {

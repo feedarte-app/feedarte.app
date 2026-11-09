@@ -32,6 +32,58 @@ export function AdminPage() {
   );
 }
 
+
+function AccessCell({ u, onChange }: { u: any; onChange: () => void }) {
+  const toast = useToast();
+  if (u.role === 'admin' || u.status === 'pending') return <span className="text-ink-400 text-xs">—</span>;
+  const until = u.accessUntil ? new Date(u.accessUntil) : null;
+  const left = until ? Math.ceil((until.getTime() - Date.now()) / 86400000) : null;
+  const label = !until
+    ? <span className="chip bg-ink-100 text-ink-600">Без обмежень</span>
+    : left! <= 0
+      ? <span className="chip bg-red-50 text-red-700">Заморожено з {until.toLocaleDateString('uk-UA')}</span>
+      : <span className={`chip ${left! <= 3 ? 'bg-amber-50 text-amber-700' : u.plan === 'trial' ? 'bg-brand-50 text-brand-700' : 'bg-emerald-50 text-emerald-700'}`}>{u.plan === 'trial' ? 'Тріал' : 'Оплачено'} до {until.toLocaleDateString('uk-UA')} · {left} дн.</span>;
+  const act = async (body: any) => {
+    try {
+      await api.post(`/api/admin/users/${u.id}/access`, body);
+      toast('Доступ оновлено');
+      onChange();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {label}
+      <select
+        className="ed-input !h-7 !w-auto !text-xs !px-2 pr-7"
+        value=""
+        data-testid="access-select"
+        onChange={(e) => {
+          const v = e.target.value;
+          e.target.value = '';
+          if (v === 'trial') act({ action: 'trial' });
+          else if (v === 'm1') act({ action: 'extend', days: 30 });
+          else if (v === 'm3') act({ action: 'extend', days: 90 });
+          else if (v === 'm12') act({ action: 'extend', days: 365 });
+          else if (v === 'date') {
+            const d = prompt('Доступ до дати (РРРР-ММ-ДД):', until ? until.toISOString().slice(0, 10) : '');
+            if (d) act({ action: 'until', until: d });
+          } else if (v === 'unlimited') act({ action: 'unlimited' });
+        }}
+      >
+        <option value="">Змінити…</option>
+        <option value="trial">Почати тріал з сьогодні</option>
+        <option value="m1">Оплата: +1 місяць</option>
+        <option value="m3">Оплата: +3 місяці</option>
+        <option value="m12">Оплата: +12 місяців</option>
+        <option value="date">До дати…</option>
+        <option value="unlimited">Без обмежень</option>
+      </select>
+    </div>
+  );
+}
+
 function UsersTab() {
   const [users, setUsers] = useState<any[] | null>(null);
   const [create, setCreate] = useState(false);
@@ -45,6 +97,15 @@ function UsersTab() {
   const patch = async (id: string, body: any) => {
     try {
       await api.patch(`/api/admin/users/${id}`, body);
+      load();
+    } catch (err) {
+      toast((err as Error).message, 'error');
+    }
+  };
+  const access = async (id: string, body: any) => {
+    try {
+      await api.post(`/api/admin/users/${id}/access`, body);
+      toast('Доступ оновлено');
       load();
     } catch (err) {
       toast((err as Error).message, 'error');
@@ -68,6 +129,7 @@ function UsersTab() {
             <th className="p-3">Користувач</th>
             <th className="p-3">Роль</th>
             <th className="p-3">Статус</th>
+            <th className="p-3">Доступ</th>
             <th className="p-3">Проєктів</th>
             <th className="p-3">Останній вхід</th>
             <th className="p-3"></th>
@@ -87,11 +149,15 @@ function UsersTab() {
                 </select>
               </td>
               <td className="p-3"><StatusBadge status={u.status} /></td>
+              <td className="p-3"><AccessCell u={u} onChange={load} /></td>
               <td className="p-3">{u.projectCount}</td>
               <td className="p-3 text-ink-500">{timeAgo(u.lastLoginAt)}</td>
               <td className="p-3">
                 <div className="flex gap-1.5 justify-end">
-                  {u.status !== 'active' && <button className="btn-outline btn-sm" onClick={() => patch(u.id, { status: 'active' })}>Активувати</button>}
+                  {u.status === 'pending' && u.role !== 'admin' && (
+                    <button className="btn-primary btn-sm" data-testid="start-trial" onClick={() => access(u.id, { action: 'trial' })}>Почати тріал</button>
+                  )}
+                  {u.status !== 'active' && <button className="btn-outline btn-sm" onClick={() => patch(u.id, { status: 'active' })}>{u.status === 'pending' ? 'Без обмежень' : 'Активувати'}</button>}
                   {u.status === 'active' && u.id !== me?.id && <button className="btn-outline btn-sm" onClick={() => patch(u.id, { status: 'blocked' })}>Заблокувати</button>}
                   <button
                     className="btn-outline btn-sm"
@@ -422,6 +488,175 @@ function MailSettings() {
   );
 }
 
+
+function TelegramSettings() {
+  const [t, setT] = useState<any>(null);
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
+  const load = () => api.get('/api/admin/settings').then((r) => setT(r.telegram));
+  useEffect(() => {
+    load();
+  }, []);
+  if (!t) return <Spinner />;
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setBusy(key);
+    try {
+      await fn();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const connected = t.hasToken && t.chatId;
+  return (
+    <div className="island p-6 space-y-4" data-testid="tg-settings">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-[17px] tracking-tight">Telegram-сповіщення</div>
+          <p className="text-sm text-ink-500 mt-1">Бот пише вам про реєстрації, нові фіди й збої сервісу.</p>
+        </div>
+        {connected ? <span className="chip bg-emerald-50 text-emerald-700 shrink-0">Підключено</span> : <span className="chip bg-ink-100 text-ink-500 shrink-0">Не підключено</span>}
+      </div>
+
+      {!connected && (
+        <ol className="text-sm text-ink-600 space-y-1.5 list-decimal pl-5">
+          <li>У Telegram відкрийте <a className="text-brand-600 hover:underline" href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> → <b>/newbot</b> → придумайте назву. Скопіюйте токен.</li>
+          <li>Вставте токен нижче і збережіть.</li>
+          <li>Відкрийте свого бота, натисніть <b>Start</b>, потім — «Знайти мій чат».</li>
+        </ol>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="label !mb-0">Токен бота</label>
+          {t.hasToken && <span className="chip bg-ink-100 text-ink-500">Збережено · {t.token}</span>}
+        </div>
+        <div className="flex gap-2">
+          <input className="input font-mono text-xs" type="password" autoComplete="off" placeholder="123456789:AAH…" value={token} onChange={(e) => setToken(e.target.value)} data-testid="tg-token" />
+          <button
+            className="btn-outline shrink-0"
+            disabled={!token || !!busy}
+            onClick={() =>
+              run('token', async () => {
+                await api.put('/api/admin/telegram', { token });
+                setToken('');
+                toast('Токен збережено');
+                await load();
+              })
+            }
+          >
+            {busy === 'token' && <Spinner />} Зберегти
+          </button>
+        </div>
+      </div>
+
+      {t.hasToken && !t.chatId && (
+        <button
+          className="btn-primary w-full"
+          disabled={!!busy}
+          data-testid="tg-detect"
+          onClick={() =>
+            run('detect', async () => {
+              const r = await api.post('/api/admin/telegram/detect', {});
+              toast(`Підключено: ${r.chatTitle}`);
+              await load();
+            })
+          }
+        >
+          {busy === 'detect' && <Spinner />} Знайти мій чат
+        </button>
+      )}
+
+      {connected && (
+        <>
+          <div className="text-sm text-ink-600">Чат: <b className="text-ink-900">{t.chatTitle || t.chatId}</b></div>
+          <div>
+            <div className="label">Про що повідомляти</div>
+            <div className="grid gap-1">
+              {Object.entries(t.eventLabels as Record<string, string>).map(([k, label]) => (
+                <label key={k} className="flex items-center gap-2.5 text-sm py-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!t.events[k]}
+                    onChange={async (e) => {
+                      const v = e.target.checked;
+                      setT({ ...t, events: { ...t.events, [k]: v } });
+                      try {
+                        await api.put('/api/admin/telegram', { events: { [k]: v } });
+                      } catch (err) {
+                        toast((err as Error).message, 'error');
+                        load();
+                      }
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-ink-500 mt-1.5">Ваші власні дії як адміністратора не надсилаються. Помилки одного фіду чи дизайну — не частіше разу на 12 годин.</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-outline" disabled={!!busy} onClick={() => run('test', async () => { await api.post('/api/admin/telegram/test', {}); toast('Надіслано — перевірте Telegram'); })}>
+              {busy === 'test' && <Spinner />} Надіслати тест
+            </button>
+            <button
+              className="btn-ghost"
+              disabled={!!busy}
+              onClick={() =>
+                run('off', async () => {
+                  if (!confirm('Відключити Telegram-сповіщення?')) return;
+                  await api.del('/api/admin/telegram');
+                  await load();
+                })
+              }
+            >
+              Відключити
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function AccessSettings() {
+  const [v, setV] = useState<{ contactTelegram: string; trialDays: number } | null>(null);
+  const toast = useToast();
+  useEffect(() => {
+    api.get('/api/admin/settings').then((r) => setV({ contactTelegram: r.contactTelegram, trialDays: r.trialDays }));
+  }, []);
+  if (!v) return null;
+  return (
+    <div className="grid grid-cols-[1fr_110px_auto] gap-2 items-end mb-4" data-testid="access-settings">
+      <div>
+        <label className="label">Ваш Telegram для заявок</label>
+        <input className="input" placeholder="@feedarte" value={v.contactTelegram ? '@' + v.contactTelegram.replace(/^@/, '') : ''} onChange={(e) => setV({ ...v, contactTelegram: e.target.value.replace(/^@/, '') })} />
+      </div>
+      <div>
+        <label className="label">Тріал, днів</label>
+        <input className="input" type="number" min={1} max={90} value={v.trialDays} onChange={(e) => setV({ ...v, trialDays: Number(e.target.value) })} />
+      </div>
+      <button
+        className="btn-outline"
+        onClick={async () => {
+          try {
+            await api.put('/api/admin/settings', v);
+            toast('Збережено');
+          } catch (e) {
+            toast((e as Error).message, 'error');
+          }
+        }}
+      >
+        Зберегти
+      </button>
+      <p className="col-span-3 text-xs text-ink-500 -mt-1">Після реєстрації людина бачить кнопку «Написати в Telegram» з готовим повідомленням. Ви натискаєте «Почати тріал» у списку користувачів.</p>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [mode, setMode] = useState<string | null>(null);
   const [keys, setKeys] = useState<{ figmaToken: string; anthropicKey: string }>({ figmaToken: '', anthropicKey: '' });
@@ -436,8 +671,8 @@ function SettingsTab() {
   }, []);
   if (!mode) return <Spinner />;
   const opts: [string, string, string][] = [
-    ['open', 'Відкрита', 'Будь-хто може зареєструватися й одразу працювати'],
-    ['approval', 'З підтвердженням', 'Нові акаунти чекають активації адміністратором (рекомендовано)'],
+    ['open', 'Відкрита', 'Будь-хто реєструється і одразу отримує тріал'],
+    ['approval', 'Через Telegram', 'Людина реєструється і пише вам у Telegram, ви натискаєте «Почати тріал» (рекомендовано)'],
     ['closed', 'Закрита', 'Реєстрація вимкнена, користувачів додає лише адміністратор'],
   ];
   return (
@@ -467,6 +702,7 @@ function SettingsTab() {
     <div className="space-y-4">
     <div className="island p-6">
       <div className="font-semibold mb-3">Реєстрація нових користувачів</div>
+      <AccessSettings />
       <div className="space-y-2">
         {opts.map(([v, l, d]) => (
           <label key={v} className={`flex gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${mode === v ? 'border-brand-400 ring-4 ring-brand-100 bg-brand-50/40' : 'border-ink-200 hover:border-ink-300'}`}>
@@ -487,6 +723,7 @@ function SettingsTab() {
         ))}
       </div>
     </div>
+    <TelegramSettings />
     <MailSettings />
     </div>
     </div>

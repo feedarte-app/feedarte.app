@@ -1,4 +1,5 @@
 import { loadImageMap, refreshCombined, removeImageMap } from '../render/combined';
+import { notify, tgEsc } from '../notify';
 import { cleanInstagram, directLinkFor, validInstagram } from './go';
 import QRCode from 'qrcode';
 import type { ProductData } from '../../shared/types';
@@ -67,6 +68,7 @@ export async function projectRoutes(app: FastifyInstance) {
   app.post('/api/projects', async (req) => {
     const body = z.object({ name: z.string().trim().min(1, 'Вкажіть назву').max(120) }).parse(req.body);
     const [p] = await db.insert(schema.projects).values({ name: body.name, ownerId: req.user!.id }).returning();
+    if (req.user!.role !== 'admin') notify('project', `📁 <b>Новий проєкт</b> «${tgEsc(p.name)}»\n${tgEsc(req.user!.email)}`);
     return { project: p };
   });
 
@@ -166,6 +168,7 @@ export async function projectRoutes(app: FastifyInstance) {
       .values({ ...body, projectId: p.id, nextSyncAt: new Date(Date.now() + body.intervalMinutes * 60000) })
       .returning();
     await queueSync(f.id, 1);
+    if (req.user!.role !== 'admin') notify('feed', `🔗 <b>Підключено фід</b> «${tgEsc(f.name)}»\n${tgEsc(req.user!.email)} · проєкт «${tgEsc(p.name)}»\n<code>${tgEsc(f.sourceUrl)}</code>`);
     return { feed: f };
   });
 
@@ -381,6 +384,7 @@ export async function projectRoutes(app: FastifyInstance) {
       .set({ published: design.draft, version: design.version + 1, publishedAt: new Date() })
       .where(eq(schema.designs.id, design.id));
     await queueRender(design.id, 1);
+    if (!design.published && req.user!.role !== 'admin') notify('publish', `🚀 <b>Перша публікація дизайну</b> «${tgEsc(design.name)}»\n${tgEsc(req.user!.email)}`);
     return { ok: true, version: design.version + 1 };
   });
 

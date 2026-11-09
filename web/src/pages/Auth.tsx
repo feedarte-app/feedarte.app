@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../main';
 import { Spinner } from '../ui';
+import { tgLink, useContact } from '../contact';
+import { Send } from 'lucide-react';
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { user, setUser } = useAuth();
@@ -15,6 +17,8 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
   const [regMode, setRegMode] = useState<string>('open');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const contact = useContact();
 
   useEffect(() => {
     api.get('/api/auth/config').then((c) => setRegMode(c.registrationMode));
@@ -29,10 +33,17 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     setBusy(true);
     try {
       const r = await api.post(`/api/auth/${mode}`, mode === 'register' ? { email, password, name } : { email, password });
-      if (r.pending) setInfo('Дякуємо! Обліковий запис створено й очікує підтвердження адміністратором.');
+      if (r.pending) {
+        setPendingEmail(email);
+        setInfo('pending');
+      }
       else setUser(r.user);
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      if (/очікує підтвердження/.test(msg)) {
+        setPendingEmail(email);
+        setInfo('pending');
+      } else setError(msg);
     } finally {
       setBusy(false);
     }
@@ -48,8 +59,23 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         </div>
         <div className="island p-7 shadow-lift">
           <h1 className="text-xl font-semibold tracking-tight mb-1">{mode === 'login' ? 'Вхід' : 'Реєстрація'}</h1>
-          <p className="text-sm text-ink-500 mb-5">Динамічні креативи для каталогів Meta та TikTok</p>
-          {info ? (
+          <p className="text-sm text-ink-500 mb-5">{mode === 'register' ? `${contact?.trialDays ?? 14} днів безкоштовно · без картки` : 'Динамічні креативи для каталогів Meta та TikTok'}</p>
+          {info === 'pending' ? (
+            <div className="space-y-3" data-testid="pending-box">
+              <div className="rounded-2xl bg-emerald-50 text-emerald-800 text-sm p-4 leading-relaxed">
+                <b>Акаунт створено ✓</b>
+                <br />
+                Щоб відкрити {contact?.trialDays ?? 14} днів безкоштовного доступу, напишіть нам у Telegram — ми активуємо тріал, зазвичай протягом години в робочий час.
+              </div>
+              {contact?.telegram ? (
+                <a className="btn-primary w-full" href={tgLink(contact.telegram, `Привіт! Зареєструвався у Feedarte (${pendingEmail}). Хочу почати безкоштовний тріал.`)} target="_blank" rel="noreferrer">
+                  <Send className="w-4 h-4" /> Написати в Telegram
+                </a>
+              ) : (
+                <div className="text-sm text-ink-500">Ми зв’яжемося з вами на {pendingEmail}.</div>
+              )}
+            </div>
+          ) : info ? (
             <div className="rounded-lg bg-emerald-50 text-emerald-800 text-sm p-3">{info}</div>
           ) : mode === 'register' && regMode === 'closed' ? (
             <div className="rounded-lg bg-amber-50 text-amber-800 text-sm p-3">Реєстрацію закрито. Зверніться до адміністратора, щоб отримати доступ.</div>
@@ -79,7 +105,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
               </div>
               {error && <div className="text-sm text-red-600">{error}</div>}
               {mode === 'register' && regMode === 'approval' && (
-                <div className="text-xs text-ink-500">Після реєстрації адміністратор має підтвердити доступ.</div>
+                <div className="text-xs text-ink-500">Після реєстрації напишіть нам у Telegram — відкриємо {contact?.trialDays ?? 14} днів безкоштовного доступу.</div>
               )}
               <button className="btn-primary w-full" disabled={busy}>
                 {busy && <Spinner />}

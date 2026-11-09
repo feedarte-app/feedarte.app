@@ -1,3 +1,4 @@
+import { appLink, notify, tgEsc } from './notify';
 import { env } from './env';
 import { runMigrations, sqlClient, db, schema } from './db';
 import { claim, complete, fail, heartbeat, pruneJobs, reclaimOrphans, recoverStale, releaseMine, workerId, type Job } from './queue';
@@ -27,6 +28,10 @@ async function handle(job: Job) {
         .update(schema.designs)
         .set({ renderStatus: 'error', renderError: e instanceof Error ? e.message : String(e) })
         .where(eq(schema.designs.id, job.payload.designId));
+      if (job.attempts >= job.max_attempts) {
+        const [d] = await sqlClient<{ name: string; email: string; feed_id: string }[]>`select d.name, d.feed_id, u.email from designs d join feeds f on f.id = d.feed_id join projects p on p.id = f.project_id join users u on u.id = p.owner_id where d.id = ${job.payload.designId}`;
+        if (d) notify('renderError', `❌ <b>Помилка рендеру</b> «${tgEsc(d.name)}»\n${tgEsc(d.email)}\n<code>${tgEsc(String(e instanceof Error ? e.message : e).slice(0, 300))}</code>\n${appLink('/feeds/' + d.feed_id, 'Відкрити фід')}`, { key: 'render-error:' + job.payload.designId, hours: 12 });
+      }
       throw e;
     }
   }

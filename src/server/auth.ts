@@ -8,7 +8,18 @@ import { env } from './env';
 export const COOKIE = 'fc_session';
 const SESSION_DAYS = 30;
 
-export type SessionUser = { id: string; email: string; name: string; role: 'admin' | 'user' };
+export type Access = { plan: 'trial' | 'paid' | null; until: string | null; expired: boolean; daysLeft: number | null };
+export type SessionUser = { id: string; email: string; name: string; role: 'admin' | 'user'; access: Access };
+
+/** null accessUntil = unlimited (admins, legacy and admin-created accounts) */
+export function accessOf(u: { role: string; plan: 'trial' | 'paid' | null; accessUntil: Date | null }): Access {
+  if (u.role === 'admin' || !u.accessUntil) return { plan: u.plan, until: null, expired: false, daysLeft: null };
+  const ms = u.accessUntil.getTime() - Date.now();
+  return { plan: u.plan, until: u.accessUntil.toISOString(), expired: ms <= 0, daysLeft: Math.max(0, Math.ceil(ms / 86400000)) };
+}
+export const sessionUser = (u: typeof schema.users.$inferSelect): SessionUser => ({ id: u.id, email: u.email, name: u.name, role: u.role, access: accessOf(u) });
+export const trialDays = () => getSetting<number>('trialDays', 14);
+export const ACCESS_EXPIRED_MSG = 'Доступ закінчився — напишіть нам у Telegram, щоб продовжити. Усі ваші дизайни й фіди збережені.';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -56,7 +67,7 @@ export async function loadUser(req: FastifyRequest) {
     .limit(1);
   const r = rows[0];
   if (!r || r.s.expiresAt < new Date() || r.u.status !== 'active') return;
-  req.user = { id: r.u.id, email: r.u.email, name: r.u.name, role: r.u.role };
+  req.user = sessionUser(r.u);
 }
 
 export async function requireUser(req: FastifyRequest) {

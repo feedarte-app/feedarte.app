@@ -31,6 +31,7 @@ const SEO: Record<string, { title: string; description: string; h1?: string }> =
   tiktok: { title: 'Як підключити каталог товарів у TikTok Ads', description: 'Підключення XML-фіду з брендованими креативами в TikTok Catalog: тип каталогу, розклад оновлення і формат 9:16.' },
   import: { title: 'Імпорт макета креативу з Figma або картинки', description: 'Перенесіть готовий макет каталожного креативу з Figma чи скріншоту в редактор і прив’яжіть шари до полів фіду.' },
   transfer: { title: 'Передача проєкту Feedarte іншому акаунту', description: 'Як передати проєкт з фідами й дизайнами клієнту чи колезі без перепідключення каталогів у Meta і TikTok.' },
+  billing: { title: 'Ціна Feedarte: 14 днів безкоштовно, далі 990 ₴/міс', description: 'Скільки коштує сервіс креативів для каталожної реклами, як почати безкоштовний тріал, оплата на ФОП і що буде після закінчення доступу.' },
   faq: { title: 'Каталожна реклама Meta: часті проблеми й рішення', description: 'Дублікати розмірів у каруселі, обрізання 4:5 до квадрата, сторіз у рамці, match rate 0% — причини й рішення.' },
 };
 
@@ -157,7 +158,7 @@ const crumbs = (items: [string, string][]) => ({
   itemListElement: items.map(([name, url], i) => ({ '@type': 'ListItem', position: i + 1, name, item: url })),
 });
 
-const cta = `<section class="cta-box"><div><h2>Спробуйте на своєму каталозі</h2><p>Підключіть фід, оберіть шаблон і отримайте готовий фід з креативами для Meta і TikTok. Поки триває бета — безкоштовно.</p></div><a class="btn btn-primary btn-lg" href="${APP}/register">Почати безкоштовно</a></section>`;
+const cta = `<section class="cta-box"><div><h2>Спробуйте на своєму каталозі</h2><p>Підключіть фід, оберіть шаблон і отримайте готовий фід з креативами для Meta і TikTok. Перші 14 днів — безкоштовно.</p></div><a class="btn btn-primary btn-lg" href="${APP}/register">Почати безкоштовно</a></section>`;
 
 function articlePage(a: Article): string {
   const seo = SEO[a.slug] ?? { title: a.title, description: a.summary };
