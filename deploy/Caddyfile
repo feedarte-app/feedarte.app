@@ -30,7 +30,7 @@
 	root * /srv/landing
 	@fonts path /fonts/*
 	header @fonts Cache-Control "public, max-age=31536000, immutable"
-	@media path /img/* /help-media/* /og.png /apple-touch-icon.png /assets/*
+	@media path /img/* /help-media/* /og.png /apple-touch-icon.png /favicon* /assets/*
 	header @media Cache-Control "public, max-age=86400"
 	header {
 		Strict-Transport-Security "max-age=31536000"

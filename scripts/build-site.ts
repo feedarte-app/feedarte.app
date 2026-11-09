@@ -118,7 +118,10 @@ ${o.noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" 
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0A0A0B">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-96.png" type="image/png" sizes="96x96">
+<link rel="icon" href="/favicon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/inter-cyr.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/site.css">
@@ -147,7 +150,7 @@ ${o.ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replac
 `;
 }
 
-const ORG = { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Feedarte', url: `${SITE}/`, logo: `${SITE}/apple-touch-icon.png` };
+const ORG = { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Feedarte', url: `${SITE}/`, logo: `${SITE}/favicon-192.png` };
 const crumbs = (items: [string, string][]) => ({
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
