@@ -23,7 +23,9 @@ const creds = z.object({
 export async function authRoutes(app: FastifyInstance) {
   const limited = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
-  app.get('/api/auth/config', async () => {
+  // public (also read by the feedarte.com help widget, hence CORS)
+  app.get('/api/auth/config', async (_req, reply) => {
+    reply.header('Access-Control-Allow-Origin', '*');
     const mode = await getSetting<RegistrationMode>('registrationMode', 'approval');
     return { registrationMode: (await userCount()) === 0 ? 'open' : mode, contactTelegram: await getSetting<string>('contactTelegram', ''), trialDays: await trialDays() };
   });

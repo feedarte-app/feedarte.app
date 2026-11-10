@@ -146,6 +146,7 @@ ${o.ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replac
   <nav aria-label="Нижня навігація"><a href="/guides/">Гайди</a><a href="/#faq">FAQ</a><a href="${APP}/login">Увійти</a></nav>
 </div></footer>
 <script src="/assets/site.js" defer></script>
+<script src="/assets/help-widget.js" defer></script>
 </body>
 </html>
 `;
