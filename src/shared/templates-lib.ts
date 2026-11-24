@@ -11,9 +11,10 @@ import { DEFAULT_FORMAT } from './types';
 import { IF_DISCOUNT, IF_NO_DISCOUNT, makeIcon, makeImage, makePriceBlock, makeShape, makeText } from './layers';
 
 export type LibFormat = 'square' | 'portrait' | 'story';
-export type Niche = 'fashion' | 'jewelry' | 'beauty' | 'home' | 'tech' | 'kids' | 'sport' | 'sale';
+export type Niche = 'event' | 'fashion' | 'jewelry' | 'beauty' | 'home' | 'tech' | 'kids' | 'sport' | 'sale';
 
 export const NICHES: { id: Niche; label: string }[] = [
+  { id: 'event', label: 'Свята й акції' },
   { id: 'fashion', label: 'Одяг і взуття' },
   { id: 'jewelry', label: 'Прикраси' },
   { id: 'beauty', label: 'Краса' },
